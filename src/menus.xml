@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <menu id="trackwidget-menu">
+    <section>
+      <item>
+        <attribute name="label" translatable="yes">Remove track</attribute>
+        <attribute name="action">app.remove_track</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">Sort tracks...</attribute>
+        <attribute name="action">app.sort_tracks</attribute>
+      </item>
+    </section>
+  </menu>
+  <menu id="playlist-menu">
+    <section>
+      <item>
+        <attribute name="label" translatable="yes">Rename playlist</attribute>
+        <attribute name="action">app.rename_playlist</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">Duplicate playlist</attribute>
+        <attribute name="action">app.duplicate_playlist</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">Add tracks</attribute>
+        <attribute name="action">app.add_tracks</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">Remove playlist</attribute>
+        <attribute name="action">app.remove_playlist</attribute>
+      </item>
+    </section>
+  </menu>
+</interface>

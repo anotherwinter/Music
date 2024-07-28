@@ -1,0 +1,48 @@
+button {
+    background: transparent;
+    border-width: 0px;
+}
+
+.playbackButton {
+    padding: 4px;
+}
+
+scale trough {
+    background-color: black;
+    border-radius: 10px;
+    border-color: black;
+}
+
+scale highlight {
+    background-color: lightgray;
+}
+
+scale slider {
+    background: lightgray;
+}
+
+.positionScale trough {
+    min-height: 5px;
+}
+
+dropdown popover {
+    background-color: #181A1F;
+    border-radius: 10px;
+}
+
+.playlistPopover {
+    background-color: #181A1F;
+    border-radius: 0px;
+}
+
+.upperBox {
+    background: #181A1F;
+}
+
+.lowerBox {
+    background: #181A1F;
+}
+
+.trackWidget {
+    background: #23242A;
+}

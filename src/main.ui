@@ -1,0 +1,191 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!-- Created with Cambalache 0.90.4 -->
+<interface>
+  <!-- interface-name gui.ui -->
+  <requires lib="gtk" version="4.12"/>
+  <object class="GtkApplicationWindow" id="win">
+    <property name="default-height">480</property>
+    <property name="default-width">640</property>
+    <property name="title">Music</property>
+    <child>
+      <object class="GtkBox" id="appBox">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkBox" id="upperBox">
+            <property name="css-classes">upperBox</property>
+            <property name="orientation">vertical</property>
+            <property name="vexpand">True</property>
+            <child>
+              <object class="GtkBox" id="playlistBox">
+                <child>
+                  <object class="GtkDropDown" id="playlistDropDown">
+                    <property name="can-focus">False</property>
+                    <property name="focus-on-click">False</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="createPlaylistButton">
+                    <property name="label">+</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="openFolderButton">
+                    <property name="label">F</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkScrolledWindow" id="tracksScrolledWindow">
+                <property name="vexpand">True</property>
+                <child>
+                  <object class="GtkBox" id="tracksBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">3</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox" id="lowerBox">
+            <property name="css-classes">lowerBox</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkLabel" id="trackLabel">
+                <property name="label">No track...</property>
+                <property name="margin-top">5</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkBox" id="audioPositionBox">
+                <child>
+                  <object class="GtkScale" id="audioPositionScale">
+                    <property name="can-focus">False</property>
+                    <property name="css-classes">positionScale</property>
+                    <property name="focus-on-click">False</property>
+                    <property name="hexpand">True</property>
+                    <property name="margin-end">5</property>
+                    <property name="margin-start">10</property>
+                    <property name="overflow">hidden</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkLabel" id="audioLengthLabel">
+                        <property name="can-focus">False</property>
+                        <property name="can-target">False</property>
+                        <property name="focus-on-click">False</property>
+                        <property name="label">00:00:00</property>
+                        <property name="margin-end">10</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="audioPositionLabel">
+                        <property name="can-focus">False</property>
+                        <property name="can-target">False</property>
+                        <property name="focus-on-click">False</property>
+                        <property name="label">00:00:00</property>
+                        <property name="margin-end">10</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkBox" id="trackButtonsBox">
+                <child>
+                  <object class="GtkButton" id="shuffleButton">
+                    <property name="css-classes">playbackButton</property>
+                    <property name="halign">end</property>
+                    <property name="hexpand">True</property>
+                    <property name="margin-end">10</property>
+                    <property name="margin-start">115</property>
+                    <property name="valign">center</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="prevButton">
+                    <property name="css-classes">playbackButton</property>
+                    <property name="halign">center</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="playButton">
+                    <property name="css-classes">playbackButton</property>
+                    <property name="halign">center</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="nextButton">
+                    <property name="css-classes">playbackButton</property>
+                    <property name="halign">center</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="loopButton">
+                    <property name="css-classes">playbackButton</property>
+                    <property name="halign">start</property>
+                    <property name="margin-start">10</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkScale" id="volumeScale">
+                    <property name="can-focus">False</property>
+                    <property name="css-classes">volumeScale</property>
+                    <property name="digits">0</property>
+                    <property name="fill-level">100.0</property>
+                    <property name="halign">end</property>
+                    <property name="hexpand">True</property>
+                    <property name="restrict-to-fill-level">False</property>
+                    <property name="valign">center</property>
+                    <property name="value-pos">right</property>
+                    <property name="width-request">120</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkWindow" id="textInputDialog">
+    <property name="default-width">220</property>
+    <property name="resizable">False</property>
+    <property name="title">Rename playlist</property>
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <property name="vexpand">True</property>
+        <child>
+          <object class="GtkEntry" id="dialogEntry">
+            <property name="placeholder-text">Name (64 characters max)</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="vexpand">True</property>
+            <child>
+              <object class="GtkButton" id="okButton">
+                <property name="hexpand">True</property>
+                <property name="label">Ok</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="cancelButton">
+                <property name="hexpand">True</property>
+                <property name="label">Cancel</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

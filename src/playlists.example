@@ -1,0 +1,10 @@
+// Example playlists configuration file
+:New Playlist1:
+/your/path/track1.mp3
+/your/path/track2.m4a
+/your/path/track3.wav
+:New Playlist1:
+:New Playlist2:
+/your/path/track4.mp3
+/your/path/track5.mp3
+:New Playlist2:

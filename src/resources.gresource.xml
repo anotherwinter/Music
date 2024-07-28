@@ -1,0 +1,16 @@
+<gresources>
+    <gresource prefix="/org/aw/Music">
+    <file>main.ui</file>
+    <file>menus.xml</file>
+    <file>styles.css</file>
+    <file>icons/media-playback-pause.svg</file>
+    <file>icons/media-playback-start.svg</file>
+    <file>icons/media-playlist-repeat.svg</file>
+    <file>icons/media-playlist-repeat-active.svg</file>
+    <file>icons/media-playlist-shuffle.svg</file>
+    <file>icons/media-playlist-shuffle-active.svg</file>
+    <file>icons/media-repeat-single.svg</file>
+    <file>icons/media-skip-backward.svg</file>
+    <file>icons/media-skip-forward.svg</file>
+    </gresource>
+</gresources>

@@ -1,0 +1,7 @@
+/.vscode
+/src/main
+/src/.cache
+/src/compile_commands.json
+/src/resources.c
+/src/resources.h
+/src/playlists
