@@ -4,7 +4,9 @@
 #include "handlers.h"
 
 void
-dialog_create_text_input_for_app(MusicApp* app, gpointer user_data)
+dialog_create_text_input_for_app(MusicApp* app,
+                                 gpointer user_data,
+                                 const char* title)
 {
   GtkBuilder* builder = gtk_builder_new_from_file("main.ui");
   GtkWindow* dialog =
@@ -17,13 +19,15 @@ dialog_create_text_input_for_app(MusicApp* app, gpointer user_data)
 
   gtk_window_set_modal(dialog, TRUE);
   gtk_window_set_transient_for(dialog, music_app_get_main_window(app));
+  if (title != NULL) {
+    gtk_window_set_title(dialog, title);
+  }
 
-  // Додавання текстового поля
-  entry = gtk_entry_new();
   gtk_entry_buffer_set_max_length(gtk_entry_get_buffer(GTK_ENTRY(entry)), 64);
 
   DialogData* data = NULL;
   data = g_new(DialogData, 1);
+  data->app = app;
   data->dialog = dialog;
   data->user_data1 = entry;
   if (user_data != NULL) {
@@ -36,7 +40,6 @@ dialog_create_text_input_for_app(MusicApp* app, gpointer user_data)
                            "clicked",
                            G_CALLBACK(gtk_window_destroy),
                            GTK_WINDOW(dialog));
-  // Відображення діалогового вікна
   gtk_widget_set_visible(GTK_WIDGET(dialog), TRUE);
 }
 

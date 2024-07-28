@@ -18,10 +18,6 @@ GtkWindow*
 music_app_get_main_window(MusicApp* app);
 GtkBox*
 music_app_get_tracks_box(MusicApp* app);
-const GPtrArray*
-music_app_get_playlists(MusicApp* app);
-guint
-music_app_get_playlists_count(MusicApp* app);
 GtkDropDown*
 music_app_get_dropdown(MusicApp* app);
 GListStore*
@@ -69,16 +65,11 @@ music_app_add_playlist(MusicApp* app, Playlist* playlist);
 void
 music_app_switch_playlist(MusicApp* app, Playlist* new);
 
-// This should be called BEFORE removing corresponding item from liststore
 void
 music_app_remove_playlist(MusicApp* app, guint index);
 
 void
 music_app_reset_current_track_widget(MusicApp* app);
-void
-music_app_list_store_append(MusicApp* app,
-                            GtkStringObject* str,
-                            PlaylistTypes type);
 void
 music_app_dropdown_select(MusicApp* app, guint index);
 void
@@ -100,3 +91,4 @@ void
 music_app_set_position_label_text(MusicApp* app, long int milliseconds);
 void
 music_app_update_length_label(MusicApp* app);
+guint music_app_get_playlists_count(MusicApp* app);

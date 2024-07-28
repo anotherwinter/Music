@@ -3,7 +3,9 @@
 #include "track.h"
 #include <gtk/gtk.h>
 
-typedef struct Playlist Playlist;
+#define PLAYLIST_TYPE (playlist_get_type())
+G_DECLARE_FINAL_TYPE(Playlist, playlist, APP, PLAYLIST, GObject);
+typedef struct _Playlist Playlist;
 
 // Creates new playlist with optional path to playlists file. Type could be
 // PLAYLIST_NONE for ordinary playlists or PLAYLIST_FOLDER, PLAYLIST_NEW for
@@ -75,3 +77,8 @@ playlist_duplicate(Playlist* playlist);
 // of a playlist (start line and end line).
 void
 playlist_offset_lines(Playlist* playlist, int offset);
+
+const gchar*
+playlist_get_description(Playlist* playlist);
+void
+playlist_set_description(Playlist* playlist, const gchar* str);

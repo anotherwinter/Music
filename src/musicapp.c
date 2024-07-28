@@ -3,6 +3,7 @@
 #include "contextmenu.h"
 #include "enum_types.h"
 #include "gio/gio.h"
+#include "glib.h"
 #include "gtk/gtk.h"
 #include "gtk/gtkcssprovider.h"
 #include "handlers.h"
@@ -47,7 +48,6 @@ struct _MusicApp
   GtkWidget* onetrackActiveImage;
   GtkWidget* loopActiveImage;
 
-  GPtrArray* playlists;
   GPtrArray* trackWidgets;
   Playlist* active;
   TrackWidget* current;
@@ -73,19 +73,13 @@ music_app_init(MusicApp* app)
 }
 
 static void
-fetch_playlists(MusicApp* app, GPtrArray* playlists, gchar* path)
+fetch_playlists(MusicApp* app, gchar* path)
 {
-  if (playlists == NULL) {
-    playlists = g_ptr_array_new();
-  }
+  GPtrArray* playlists = g_ptr_array_new();
   parse_playlists(playlists, "playlists");
   if (playlists->len > 0) {
-    GtkStringObject* playlistNameSO = NULL;
     for (guint i = 0; i < playlists->len; i++) {
-      playlistNameSO = gtk_string_object_new(
-        playlist_get_name(g_ptr_array_index(playlists, i)));
-      music_app_list_store_append(app, playlistNameSO, PLAYLIST_NONE);
-      g_object_unref(playlistNameSO);
+      g_list_store_append(app->playlistLS, g_ptr_array_index(playlists, i));
     }
 
     // Active playlist is being switched automatically in selection_changed()
@@ -105,11 +99,12 @@ setup_factory_signal(GtkSignalListItemFactory* factory,
     app->playlistDD, "notify::selected", G_CALLBACK(selection_changed), app);
 
   GtkWidget* box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
-  GtkWidget* label = gtk_label_new(NULL);
-  gtk_label_set_xalign(GTK_LABEL(label), 0.0f);
-  gtk_widget_set_hexpand(label, TRUE);
+  GtkWidget* nameLabel = gtk_label_new(NULL);
+  GtkWidget* descriptionLabel = gtk_label_new(NULL);
+  gtk_label_set_justify(GTK_LABEL(descriptionLabel), GTK_JUSTIFY_CENTER);
 
-  gtk_box_append(GTK_BOX(box), label);
+  gtk_box_append(GTK_BOX(box), nameLabel);
+  gtk_box_append(GTK_BOX(box), descriptionLabel);
   gtk_list_item_set_child(list_item, box);
 }
 
@@ -120,29 +115,28 @@ bind_factory_signal(GtkSignalListItemFactory* factory,
                     gpointer user_data)
 {
   GtkWidget* box = gtk_list_item_get_child(GTK_LIST_ITEM(list_item));
-  GtkWidget* label = gtk_widget_get_first_child(box);
-  GtkStringObject* item = GTK_STRING_OBJECT(gtk_list_item_get_item(list_item));
-  const gchar* string = gtk_string_object_get_string(item);
+  GtkWidget* nameLabel = gtk_widget_get_first_child(box);
+  GtkWidget* descriptionLabel = gtk_widget_get_last_child(box);
+  Playlist* playlist = APP_PLAYLIST(gtk_list_item_get_item(list_item));
+  MusicApp* app = MUSIC_APP(user_data);
 
-  gtk_label_set_text(GTK_LABEL(label), string);
+  gtk_label_set_text(GTK_LABEL(nameLabel), playlist_get_name(playlist));
+  gtk_label_set_text(GTK_LABEL(descriptionLabel),
+                     playlist_get_description(playlist));
 
-  g_object_set_data(G_OBJECT(box), "item", list_item);
-  g_object_set_data(G_OBJECT(box), "store", user_data);
-  g_object_set_data(
-    G_OBJECT(box),
-    "playlist",
-    music_app_get_playlist(g_object_get_data(G_OBJECT(user_data), "app"),
-                           gtk_list_item_get_position(list_item)));
+  g_object_set_data(G_OBJECT(playlist), "item", list_item);
+  g_object_set_data(G_OBJECT(playlist), "store", app->playlistLS);
 
   GtkGesture* gesture = gtk_gesture_click_new();
   gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(gesture), 3);
-  g_signal_connect(gesture, "pressed", G_CALLBACK(playlist_clicked), box);
+  g_signal_connect(gesture, "pressed", G_CALLBACK(playlist_clicked), list_item);
   gtk_widget_add_controller(GTK_WIDGET(box), GTK_EVENT_CONTROLLER(gesture));
 
   // When binding item we have access to its GtkListItemWidget - container for
   // all other widgets that form our custom widget. We can easily access it by
   // getting parent of child (box here) for changing background color for whole
   // widget
+  gtk_widget_add_css_class(descriptionLabel, "descriptionText");
   gtk_widget_add_css_class(gtk_widget_get_parent(box), "playlistPopover");
 }
 
@@ -152,9 +146,17 @@ unbind_factory_signal(GtkSignalListItemFactory* self,
                       gpointer user_data)
 {
   GtkWidget* box = gtk_list_item_get_child(list_item);
-  GtkWidget* label = gtk_widget_get_first_child(box);
+  GtkWidget* nameLabel = gtk_widget_get_first_child(box);
 
-  gtk_label_set_text(GTK_LABEL(label), NULL);
+  GtkWidget* menu = GTK_WIDGET(context_menu_get_menu(false));
+  if (gtk_widget_get_parent(menu) == box) {
+    gtk_widget_unparent(menu);
+  }
+
+  GtkWidget* descriptionLabel = gtk_widget_get_last_child(box);
+
+  gtk_label_set_text(GTK_LABEL(nameLabel), NULL);
+  gtk_label_set_text(GTK_LABEL(descriptionLabel), NULL);
   g_object_set_data(G_OBJECT(box), "item", NULL);
   g_object_set_data(G_OBJECT(box), "store", NULL);
 }
@@ -164,11 +166,6 @@ teardown_factory_signal(GtkSignalListItemFactory* factory,
                         GtkListItem* list_item,
                         gpointer user_data)
 {
-  // GtkWidget* box = gtk_list_item_get_child(list_item); this is possibly
-  // unwanted thing GtkWidget* button = gtk_widget_get_last_child(box);
-  // GtkWidget* label = gtk_widget_get_first_child(box);
-  // gtk_box_remove(GTK_BOX(box), label);
-  // gtk_box_remove(GTK_BOX(box), button);
 }
 
 static void
@@ -180,8 +177,7 @@ create_factory(MusicApp* app)
   g_object_set_data(G_OBJECT(app->playlistLS), "app", app);
 
   g_signal_connect(factory, "setup", G_CALLBACK(setup_factory_signal), app);
-  g_signal_connect(
-    factory, "bind", G_CALLBACK(bind_factory_signal), app->playlistLS);
+  g_signal_connect(factory, "bind", G_CALLBACK(bind_factory_signal), app);
   g_signal_connect(factory, "unbind", G_CALLBACK(unbind_factory_signal), NULL);
   g_signal_connect(
     factory, "teardown", G_CALLBACK(teardown_factory_signal), NULL);
@@ -362,11 +358,10 @@ music_app_activate(GApplication* app)
 
   build_ui(this);
 
-  this->playlistLS = g_list_store_new(GTK_TYPE_STRING_OBJECT);
+  this->playlistLS = g_list_store_new(PLAYLIST_TYPE);
   this->current = NULL;
   this->active = NULL;
   this->options = PLAYBACK_NONE;
-  this->playlists = g_ptr_array_new();
   this->trackWidgets = g_ptr_array_new();
 
   gtk_drop_down_set_model(this->playlistDD, G_LIST_MODEL(this->playlistLS));
@@ -379,8 +374,8 @@ music_app_activate(GApplication* app)
 
   setup_signals(this);
 
-  fetch_playlists(this, this->playlists, "playlists");
-  context_menu_init(GTK_APPLICATION(this));
+  fetch_playlists(this, "playlists");
+  context_menu_init(this);
 
   gtk_window_set_application(this->win, GTK_APPLICATION(app));
   gtk_window_present(this->win);
@@ -425,12 +420,6 @@ GtkBox*
 music_app_get_tracks_box(MusicApp* app)
 {
   return app->tracksBox;
-}
-
-const GPtrArray*
-music_app_get_playlists(MusicApp* app)
-{
-  return app->playlists;
 }
 
 GtkDropDown*
@@ -630,9 +619,9 @@ music_app_update_track_widgets_indices(MusicApp* app)
 Playlist*
 music_app_get_playlist(MusicApp* app, guint index)
 {
-  if (index >= app->playlists->len)
+  if (index >= g_list_model_get_n_items(G_LIST_MODEL(app->playlistLS)))
     return NULL;
-  return g_ptr_array_index(app->playlists, index);
+  return g_list_model_get_item(G_LIST_MODEL(app->playlistLS), index);
 }
 
 void
@@ -645,12 +634,11 @@ music_app_add_playlist(MusicApp* app, Playlist* playlist)
         music_app_clear_track_widgets(app);
         music_app_set_active_playlist(app, NULL);
       }
-      playlist_free(g_ptr_array_remove_index_fast(app->playlists, 0));
       g_list_store_remove(app->playlistLS, 0);
     }
-    g_ptr_array_insert(app->playlists, 0, playlist);
+    g_list_store_insert(app->playlistLS, 0, playlist);
   } else {
-    g_ptr_array_add(app->playlists, playlist);
+    g_list_store_append(app->playlistLS, playlist);
   }
 }
 
@@ -668,7 +656,7 @@ music_app_switch_playlist(MusicApp* app, Playlist* new)
     for (int i = 0; i < tracks->len; i++) {
       Track* track = g_ptr_array_index(tracks, i);
       music_app_add_track_widget(
-        app, track_widget_configure(track_widget_new(app, track), app, track));
+        app, track_widget_configure(track_widget_new(app), app, track));
     }
   }
   music_app_set_active_playlist(app, new);
@@ -677,15 +665,16 @@ music_app_switch_playlist(MusicApp* app, Playlist* new)
 void
 music_app_remove_playlist(MusicApp* app, guint index)
 {
-  if (index >= app->trackWidgets->len)
+  if (index >= g_list_model_get_n_items(G_LIST_MODEL(app->playlistLS)))
     return;
 
-  Playlist* playlist = g_ptr_array_remove_index(app->playlists, index);
+  Playlist* playlist =
+    g_list_model_get_item(G_LIST_MODEL(app->playlistLS), index);
 
   if (playlist == music_app_get_active_playlist(app)) {
     music_app_switch_playlist(app, NULL);
   }
-  playlist_free(playlist);
+  g_list_store_remove(app->playlistLS, index);
 }
 
 void
@@ -698,29 +687,6 @@ music_app_reset_current_track_widget(MusicApp* app)
   music_app_set_current_track_widget(app, NULL, G_MAXUINT, TRACK_INACTIVE);
   gtk_label_set_text(app->audioPositionLabel, "00:00:00");
   gtk_label_set_text(app->audioLengthLabel, "00:00:00");
-}
-
-void
-music_app_list_store_append(MusicApp* app,
-                            GtkStringObject* str,
-                            PlaylistTypes type)
-{
-  switch (type) {
-    case PLAYLIST_NEW: {
-      g_list_store_append(app->playlistLS, str);
-      gtk_drop_down_set_selected(app->playlistDD, app->playlists->len - 1);
-      break;
-    }
-    case PLAYLIST_FOLDER: {
-      g_list_store_insert(app->playlistLS, 0, str);
-      gtk_drop_down_set_selected(app->playlistDD, 0);
-      break;
-    }
-    default: {
-      g_list_store_append(app->playlistLS, str);
-      break;
-    }
-  }
 }
 
 void
@@ -752,17 +718,15 @@ music_app_duplicate_playlist(MusicApp* app, Playlist* playlist)
 {
   Playlist* copy = playlist_duplicate(playlist);
   music_app_add_playlist(app, copy);
-  GtkStringObject* so = gtk_string_object_new(playlist_get_name(copy));
-  music_app_list_store_append(app, so, PLAYLIST_NONE);
-  g_object_unref(so);
   playlist_save(copy);
 }
 
 void
 music_app_shift_playlists_lines(MusicApp* app, guint index, int offset)
 {
-  while (index < app->playlists->len) {
-    playlist_offset_lines(g_ptr_array_index(app->playlists, index), offset);
+  while (index < g_list_model_get_n_items(G_LIST_MODEL(app->playlistLS))) {
+    playlist_offset_lines(
+      g_list_model_get_item(G_LIST_MODEL(app->playlistLS), index), offset);
     index++;
   }
 }
@@ -826,4 +790,10 @@ music_app_update_length_label(MusicApp* app)
   } else {
     gtk_label_set_text(app->audioLengthLabel, "00:00:00");
   }
+}
+
+guint
+music_app_get_playlists_count(MusicApp* app)
+{
+  return g_list_model_get_n_items(G_LIST_MODEL(app->playlistLS));
 }

@@ -23,7 +23,6 @@ openFolder_cb(GtkFileDialog* source, GAsyncResult* res, gpointer user_data)
   gchar* path = g_file_get_path(folder);
   if (path != NULL) {
     g_print("Selected folder: %s\n", path);
-    GtkStringObject* pathSO = gtk_string_object_new(path);
     GPtrArray* arr = list_audio_files(path);
 
     Playlist* playlist = playlist_new(path, path, PLAYLIST_FOLDER);
@@ -38,11 +37,9 @@ openFolder_cb(GtkFileDialog* source, GAsyncResult* res, gpointer user_data)
       g_print("%s\n", (gchar*)str);
     }
     music_app_add_playlist(app, playlist);
-    music_app_list_store_append(app, pathSO, PLAYLIST_FOLDER);
 
     g_free(path);
     g_object_unref(folder);
-    g_object_unref(pathSO);
   }
 }
 
@@ -230,7 +227,7 @@ trackWidget_clicked(GtkGestureClick* self,
 {
   GtkWidget* menu = GTK_WIDGET(context_menu_get_menu(true));
   if (gtk_widget_get_parent(menu) != GTK_WIDGET(user_data)) {
-    gtk_widget_unparent(GTK_WIDGET(menu));
+    gtk_widget_unparent(menu);
     gtk_widget_set_parent(GTK_WIDGET(menu), GTK_WIDGET(user_data));
     context_menu_set_data(user_data);
   }
@@ -245,19 +242,16 @@ createPlaylist_clicked(GtkButton* self, gpointer user_data)
 
   Playlist* playlist = music_app_get_active_playlist(app);
   if (playlist == NULL || playlist_get_length(playlist) > 0) {
-    Playlist* playlist =
-      music_app_get_playlist(app, music_app_get_playlists(app)->len - 1);
+    guint lastIndex = music_app_get_playlists_count(app) - 1;
+    Playlist* playlist = music_app_get_playlist(app, lastIndex);
     if (playlist_is_new(playlist)) {
-      music_app_dropdown_select(app, music_app_get_playlists(app)->len - 1);
+      music_app_dropdown_select(app, lastIndex);
       return;
     }
     Playlist* new = playlist_new(
       g_strdup("New Playlist"), g_strdup("playlists"), PLAYLIST_NEW);
-    GtkStringObject* so = gtk_string_object_new("New Playlist");
     music_app_add_playlist(app, new);
-    music_app_list_store_append(app, so, PLAYLIST_NEW);
-    music_app_dropdown_select(app, music_app_get_playlists(app)->len - 1);
-    g_object_unref(so);
+    music_app_dropdown_select(app, lastIndex);
   }
 }
 
@@ -271,6 +265,28 @@ selection_changed(GtkDropDown* dropdown, GParamSpec* pspec, gpointer user_data)
   }
 }
 
+static void
+change_playlist_info(gpointer user_data)
+{
+  DialogData* data = user_data;
+  const char* text = data->user_data1;
+  GtkListItem* item = data->user_data2;
+  Playlist* playlist = gtk_list_item_get_item(item);
+  GtkLabel* label;
+
+  if (g_object_get_data(G_OBJECT(item), "flag")) {
+    playlist_set_description(playlist, text);
+    label = GTK_LABEL(gtk_widget_get_last_child(gtk_list_item_get_child(item)));
+    g_object_set_data(G_OBJECT(item), "flag", NULL);
+  } else {
+    label =
+      GTK_LABEL(gtk_widget_get_first_child(gtk_list_item_get_child(item)));
+    playlist_rename(playlist, text);
+  }
+  gtk_label_set_text(label, text);
+  playlist_save(playlist);
+}
+
 void
 playlist_clicked(GtkGestureClick* self,
                  gint n_press,
@@ -279,11 +295,14 @@ playlist_clicked(GtkGestureClick* self,
                  gpointer user_data)
 {
   GtkWidget* menu = GTK_WIDGET(context_menu_get_menu(false));
-  GtkWidget* box = GTK_WIDGET(user_data);
+  GtkWidget* box = gtk_list_item_get_child(user_data);
+  if (context_menu_get_callback() != change_playlist_info) {
+    context_menu_set_callback(change_playlist_info);
+  }
   if (gtk_widget_get_parent(menu) != box) {
-    gtk_widget_unparent(GTK_WIDGET(menu));
-    gtk_widget_set_parent(GTK_WIDGET(menu), box);
-    context_menu_set_data(box);
+    gtk_widget_unparent(menu);
+    gtk_widget_set_parent(menu, box);
+    context_menu_set_data(user_data);
   }
   gtk_popover_set_pointing_to(GTK_POPOVER(menu), &(GdkRectangle){ x, y, 1, 1 });
   gtk_popover_popup(GTK_POPOVER(menu));
@@ -293,31 +312,19 @@ void
 on_text_field_dialog_response(GtkButton* self, gpointer user_data)
 {
   DialogData* data = user_data;
+  GtkWindow* dialog = data->dialog;
   GtkEntry* entry = data->user_data1;
-  GtkBox* box = data->user_data2;
 
   GtkEntryBuffer* buffer = gtk_entry_get_buffer(entry);
 
   if (gtk_entry_buffer_get_length(buffer) > 0) {
-    GtkListItem* item = g_object_get_data(G_OBJECT(box), "item");
-    GtkStringObject* so =
-      gtk_string_object_new(gtk_entry_buffer_get_text(buffer));
-    GtkStringObject* items[] = { so };
-    GListStore* store = g_object_get_data(G_OBJECT(box), "store");
-    g_list_store_splice(g_object_get_data(G_OBJECT(box), "store"),
-                        gtk_list_item_get_position(item),
-                        1,
-                        (gpointer)items,
-                        1);
-    g_object_unref(so);
-    gtk_widget_activate(GTK_WIDGET(
-      music_app_get_dropdown(g_object_get_data(G_OBJECT(store), "app"))));
-    playlist_rename(g_object_get_data(G_OBJECT(box), "playlist"),
-                    gtk_entry_buffer_get_text(buffer));
-    playlist_save(g_object_get_data(G_OBJECT(box), "playlist"));
+    if (context_menu_get_callback() != NULL) {
+      data->user_data1 = (gpointer)gtk_entry_buffer_get_text(buffer);
+      context_menu_trigger_callback(data);
+    }
   }
 
-  gtk_window_destroy(GTK_WINDOW(data->dialog));
+  gtk_window_destroy(dialog);
   g_free(data);
 }
 
@@ -327,11 +334,10 @@ openFiles_cb(GtkFileDialog* source, GAsyncResult* res, gpointer user_data)
   GListModel* list = gtk_file_dialog_open_multiple_finish(source, res, NULL);
   if (list) {
     DialogData* data = user_data;
-    guint* index = data->dialog;
-    MusicApp* app = MUSIC_APP(data->user_data1);
-    Playlist* playlist = data->user_data2;
-    guint length = g_list_model_get_n_items(list);
-    for (guint i = 0; i < length; i++) {
+    MusicApp* app = MUSIC_APP(data->app);
+    Playlist* playlist = gtk_list_item_get_item(data->user_data1);
+    guint appendCount = g_list_model_get_n_items(list);
+    for (guint i = 0; i < appendCount; i++) {
       GFile* file = g_list_model_get_item(list, i);
       gchar* path = g_file_get_path(file);
       Track* track = fetch_track(path);
@@ -340,19 +346,17 @@ openFiles_cb(GtkFileDialog* source, GAsyncResult* res, gpointer user_data)
       g_free(path);
     }
     if (playlist == music_app_get_active_playlist(app)) {
-      guint index = playlist_get_length(playlist) - length;
+      guint index = playlist_get_length(playlist) - appendCount;
       guint length = playlist_get_length(playlist) - 1;
       while (index < length) {
         Track* track = playlist_get_track(playlist, index);
         music_app_add_track_widget(
-          app,
-          track_widget_configure(track_widget_new(app, track), app, track));
+          app, track_widget_configure(track_widget_new(app), app, track));
         index++;
       }
     }
-    music_app_shift_playlists_lines(app, *index, playlist_save(playlist));
+    music_app_shift_playlists_lines(app, appendCount, playlist_save(playlist));
 
-    g_free(index);
     g_free(data);
     g_object_unref(list);
   }

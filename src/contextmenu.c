@@ -1,6 +1,6 @@
 #include "contextmenu.h"
 #include "dialog.h"
-#include "glib.h"
+#include "glib-object.h"
 #include "gtk/gtk.h"
 #include "musicapp.h"
 #include "playlist.h"
@@ -13,6 +13,7 @@ struct ContextMenu
   GtkPopoverMenu* playlistMenu;
   MusicApp* app;
   gpointer data;
+  ContextMenuCallback callback;
 };
 
 static ContextMenu* context_menu = NULL;
@@ -46,14 +47,10 @@ on_add_tracks_action(GSimpleAction* action,
                      gpointer user_data)
 {
   DialogData* data = g_new(DialogData, 1);
-  guint* index = g_new(guint, 1);
-  *index = gtk_list_item_get_position(
-    g_object_get_data(G_OBJECT(context_menu->data), "item"));
-  data->dialog = index;
-  data->user_data1 = context_menu->app;
-  data->user_data2 =
-    g_object_get_data(G_OBJECT(context_menu->data), "playlist");
+  data->app = context_menu->app;
+  data->user_data1 = context_menu->data;
   dialog_create_file_dialog(context_menu->app, data);
+  gtk_widget_activate(GTK_WIDGET(music_app_get_dropdown(context_menu->app)));
 }
 
 static void
@@ -61,7 +58,9 @@ on_rename_playlist_action(GSimpleAction* action,
                           GVariant* parameter,
                           gpointer user_data)
 {
-  dialog_create_text_input_for_app(context_menu->app, context_menu->data);
+  gtk_widget_unparent(GTK_WIDGET(context_menu->playlistMenu));
+  dialog_create_text_input_for_app(
+    context_menu->app, context_menu->data, "Rename playlist...");
 }
 
 static void
@@ -69,9 +68,9 @@ on_duplicate_playlist_action(GSimpleAction* action,
                              GVariant* parameter,
                              gpointer user_data)
 {
-  music_app_duplicate_playlist(
-    context_menu->app,
-    g_object_get_data(G_OBJECT(context_menu->data), "playlist"));
+  gtk_widget_unparent(GTK_WIDGET(context_menu->playlistMenu));
+  music_app_duplicate_playlist(context_menu->app,
+                               gtk_list_item_get_item(context_menu->data));
 }
 
 static void
@@ -79,40 +78,44 @@ on_remove_playlist_action(GSimpleAction* action,
                           GVariant* parameter,
                           gpointer user_data)
 {
-  GListStore* store =
-    G_LIST_STORE(g_object_get_data(G_OBJECT(context_menu->data), "store"));
-  GtkListItem* item =
-    GTK_LIST_ITEM(g_object_get_data(G_OBJECT(context_menu->data), "item"));
+  gtk_widget_unparent(GTK_WIDGET(context_menu->playlistMenu));
 
-  if (item != NULL) {
-    // Remove the item from the store, remove and free playlist and trackwidgets
-    // associated with that item
-    MusicApp* app = MUSIC_APP(context_menu->app);
-    int index = gtk_list_item_get_position(item);
-    Playlist* playlist = music_app_get_playlist(app, index);
+  // Remove the item from the store, remove and free playlist and trackwidgets
+  // associated with that item
+  MusicApp* app = MUSIC_APP(context_menu->app);
+  int index = gtk_list_item_get_position(context_menu->data);
+  Playlist* playlist = APP_PLAYLIST(gtk_list_item_get_item(context_menu->data));
 
-    if (playlist != NULL) {
-      int offset = playlist_delete(playlist);
-      music_app_remove_playlist(app, index);
-      if (offset) {
-        music_app_shift_playlists_lines(app, index, offset);
-      }
-    }
-
-    // This is hack for fixing auto-select not emitting notify signal when
-    // appended to/removed from liststore
-    music_app_dropdown_select(app, GTK_INVALID_LIST_POSITION);
-
-    g_list_store_remove(store, index);
+  int offset = playlist_delete(playlist);
+  music_app_remove_playlist(app, index);
+  if (offset) {
+    music_app_shift_playlists_lines(app, index, offset);
   }
+
+  // This is hack for fixing auto-select not emitting notify signal when
+  // appended to/removed from liststore
+  music_app_dropdown_select(app, GTK_INVALID_LIST_POSITION);
+}
+
+static void
+on_change_playlist_description_action(GSimpleAction* action,
+                                      GVariant* parameter,
+                                      gpointer user_data)
+{
+  gtk_widget_unparent(GTK_WIDGET(context_menu->playlistMenu));
+  g_object_set_data(context_menu->data, "flag", "1");
+  dialog_create_text_input_for_app(
+    context_menu->app, context_menu->data, "Change playlist description...");
 }
 
 void
-context_menu_init(GtkApplication* app)
+context_menu_init(MusicApp* app)
 {
   if (context_menu == NULL) {
     context_menu = g_malloc(sizeof(ContextMenu));
-    context_menu->app = MUSIC_APP(app);
+    context_menu->app = app;
+    context_menu->data = NULL;
+    context_menu->callback = NULL;
   }
 
   GtkBuilder* builder =
@@ -174,6 +177,15 @@ context_menu_init(GtkApplication* app)
   g_action_map_add_action(G_ACTION_MAP(context_menu->app),
                           G_ACTION(remove_playlist_action));
 
+  GSimpleAction* change_playlist_description_action =
+    g_simple_action_new("change_playlist_description", NULL);
+  g_signal_connect(change_playlist_description_action,
+                   "activate",
+                   G_CALLBACK(on_change_playlist_description_action),
+                   NULL);
+  g_action_map_add_action(G_ACTION_MAP(context_menu->app),
+                          G_ACTION(change_playlist_description_action));
+
   // Adding +1 to reference counter so that when parent
   // for menu is changed by unparenting the menu itself
   // doesn't get destroyed or freed
@@ -198,4 +210,24 @@ gpointer
 context_menu_get_data()
 {
   return context_menu->data;
+}
+
+ContextMenuCallback
+context_menu_get_callback()
+{
+  return context_menu->callback;
+}
+
+void
+context_menu_set_callback(ContextMenuCallback cb)
+{
+  context_menu->callback = cb;
+}
+
+void
+context_menu_trigger_callback(gpointer user_data)
+{
+  if (context_menu->callback != NULL) {
+    context_menu->callback(user_data);
+  }
 }

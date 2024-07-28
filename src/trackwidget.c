@@ -154,7 +154,7 @@ track_widget_set_track(TrackWidget* widget, Track* track)
 }
 
 TrackWidget*
-track_widget_new(MusicApp* app, Track* track)
+track_widget_new(MusicApp* app)
 {
   return g_object_new(TRACK_WIDGET_TYPE, NULL);
 }

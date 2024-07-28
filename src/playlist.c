@@ -1,22 +1,57 @@
 #include "playlist.h"
 #include "filelister.h"
+#include "glib.h"
 
-typedef struct Playlist
+struct _Playlist
 {
+  GObject parent_instance;
   gchar* name;
   gchar* path;
+  gchar* description;
   GPtrArray* tracks;
   PlaylistTypes type;
   guint startLine;
   guint endLine;
-} Playlist;
+};
+
+G_DEFINE_TYPE(Playlist, playlist, G_TYPE_OBJECT)
+
+static void
+playlist_dispose(GObject* object)
+{
+  Playlist* playlist = APP_PLAYLIST(object);
+
+  playlist_free(playlist);
+
+  gtk_widget_unparent(GTK_WIDGET(object));
+  G_OBJECT_CLASS(playlist_parent_class)->dispose(object);
+}
+
+static void
+playlist_finalize(GObject* object)
+{
+  G_OBJECT_CLASS(playlist_parent_class)->finalize(object);
+}
+
+static void
+playlist_init(Playlist* self)
+{
+}
+
+static void
+playlist_class_init(PlaylistClass* klass)
+{
+  G_OBJECT_CLASS(klass)->dispose = playlist_dispose;
+  G_OBJECT_CLASS(klass)->finalize = playlist_finalize;
+}
 
 Playlist*
 playlist_new(gchar* name, gchar* path, PlaylistTypes type)
 {
-  Playlist* playlist = malloc(sizeof(Playlist));
+  Playlist* playlist = g_object_new(PLAYLIST_TYPE, NULL);
   playlist->name = g_strdup(name);
   playlist->path = g_strdup(path);
+  playlist->description = g_strdup("No description");
   playlist->tracks = g_ptr_array_new();
   playlist->type = type;
   playlist->startLine = G_MAXUINT;
@@ -34,7 +69,6 @@ playlist_free(Playlist* playlist)
   }
   g_free(playlist->name);
   g_free(playlist->path);
-  g_free(playlist);
 }
 
 void
@@ -211,6 +245,7 @@ parse_playlists(GPtrArray* playlists, gchar* filename)
               gchar* playlistName =
                 g_utf8_substring(line, startIndex + 1, endIndex);
               playlist = playlist_new(playlistName, filename, false);
+              g_free(playlistName);
               name = false;
               startLine = lineIndex;
               break;
@@ -225,6 +260,12 @@ parse_playlists(GPtrArray* playlists, gchar* filename)
               playlist_set_lines_in_conf(playlist, startLine, lineIndex);
               g_ptr_array_add(playlists, playlist);
               g_ptr_array_free(tracks, FALSE);
+
+              gchar* playlistDescription =
+                g_utf8_substring(line, startIndex + 1, endIndex);
+              playlist_set_description(playlist, playlistDescription);
+              g_free(playlistDescription);
+
               playlist = NULL;
               tracks = NULL;
               name = false;
@@ -309,7 +350,7 @@ static GPtrArray*
 playlist_make_lines(Playlist* playlist)
 {
   GPtrArray* lines = g_ptr_array_new();
-  char* line = malloc(strlen(playlist->name) + 4);
+  char* line = g_new(char, strlen(playlist->name) + 4);
   g_snprintf(line, strlen(playlist->name) + 4, ":%s:\n", playlist->name);
 
   g_ptr_array_add(lines, line);
@@ -320,6 +361,9 @@ playlist_make_lines(Playlist* playlist)
       g_strconcat(
         ((Track*)g_ptr_array_index(playlist->tracks, i))->path, "\n", NULL));
   }
+  line = g_new(char, strlen(playlist->description) + 4);
+  g_snprintf(
+    line, strlen(playlist->description) + 4, ":%s:\n", playlist->description);
   g_ptr_array_add(lines, line);
 
   return lines;
@@ -392,7 +436,7 @@ playlist_save(Playlist* playlist)
       fputs(buffer, file);
     }
 
-    int offset = lines->len - (playlist->endLine - playlist->startLine);
+    int offset = lines->len - (playlist->endLine - playlist->startLine) - 1;
     playlist->endLine += offset;
 
     fclose(tmp);
@@ -444,11 +488,12 @@ playlist_delete(Playlist* playlist)
 Playlist*
 playlist_duplicate(Playlist* playlist)
 {
-  Playlist* copy = g_new(Playlist, 1);
+  Playlist* copy = g_object_new(PLAYLIST_TYPE, NULL);
   copy->path = g_strdup(playlist->path);
   copy->startLine = G_MAXUINT;
   copy->endLine = G_MAXUINT;
   copy->name = g_strconcat(g_strdup(playlist->name), " (copy)", NULL);
+  copy->description = g_strdup(playlist->description);
   copy->type = PLAYLIST_NONE;
   copy->tracks = g_ptr_array_new();
   g_ptr_array_set_size(copy->tracks, playlist->tracks->len);
@@ -466,4 +511,19 @@ playlist_offset_lines(Playlist* playlist, int offset)
 {
   playlist->startLine += offset;
   playlist->endLine += offset;
+}
+
+const gchar*
+playlist_get_description(Playlist* playlist)
+{
+  return playlist->description;
+}
+
+void
+playlist_set_description(Playlist* playlist, const gchar* str)
+{
+  if (playlist->description != NULL) {
+    g_free(playlist->description);
+  }
+  playlist->description = g_strdup(str);
 }

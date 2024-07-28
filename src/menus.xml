@@ -15,16 +15,20 @@
   <menu id="playlist-menu">
     <section>
       <item>
+        <attribute name="label" translatable="yes">Add tracks</attribute>
+        <attribute name="action">app.add_tracks</attribute>
+      </item>
+      <item>
         <attribute name="label" translatable="yes">Rename playlist</attribute>
         <attribute name="action">app.rename_playlist</attribute>
       </item>
       <item>
-        <attribute name="label" translatable="yes">Duplicate playlist</attribute>
-        <attribute name="action">app.duplicate_playlist</attribute>
+        <attribute name="label" translatable="yes">Change playlist description</attribute>
+        <attribute name="action">app.change_playlist_description</attribute>
       </item>
       <item>
-        <attribute name="label" translatable="yes">Add tracks</attribute>
-        <attribute name="action">app.add_tracks</attribute>
+        <attribute name="label" translatable="yes">Duplicate playlist</attribute>
+        <attribute name="action">app.duplicate_playlist</attribute>
       </item>
       <item>
         <attribute name="label" translatable="yes">Remove playlist</attribute>
