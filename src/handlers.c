@@ -2,13 +2,8 @@
 #include "audiosystem.h"
 #include "contextmenu.h"
 #include "dialog.h"
-#include "enum_types.h"
 #include "filelister.h"
-#include "glib.h"
-#include "gtk/gtk.h"
 #include "musicapp.h"
-#include "playlist.h"
-#include "track.h"
 #include "trackwidget.h"
 
 static void
@@ -37,6 +32,7 @@ openFolder_cb(GtkFileDialog* source, GAsyncResult* res, gpointer user_data)
       g_print("%s\n", (gchar*)str);
     }
     music_app_add_playlist(app, playlist);
+    music_app_dropdown_select(app, 0);
 
     g_free(path);
     g_object_unref(folder);
@@ -240,28 +236,34 @@ createPlaylist_clicked(GtkButton* self, gpointer user_data)
 {
   MusicApp* app = MUSIC_APP(user_data);
 
-  Playlist* playlist = music_app_get_active_playlist(app);
-  if (playlist == NULL || playlist_get_length(playlist) > 0) {
-    guint lastIndex = music_app_get_playlists_count(app) - 1;
-    Playlist* playlist = music_app_get_playlist(app, lastIndex);
-    if (playlist_is_new(playlist)) {
-      music_app_dropdown_select(app, lastIndex);
-      return;
-    }
-    Playlist* new = playlist_new(
-      g_strdup("New Playlist"), g_strdup("playlists"), PLAYLIST_NEW);
-    music_app_add_playlist(app, new);
+  Playlist* current = NULL;
+  guint lastIndex = music_app_get_playlists_count(app) - 1;
+  current = music_app_get_playlist(app, lastIndex);
+  if (playlist_is_new(current)) {
     music_app_dropdown_select(app, lastIndex);
+    return;
   }
+  current =
+    playlist_new(g_strdup("New Playlist"), g_strdup("playlists"), PLAYLIST_NEW);
+  music_app_add_playlist(app, current);
+  music_app_dropdown_select(app, ++lastIndex);
 }
 
 void
 selection_changed(GtkDropDown* dropdown, GParamSpec* pspec, gpointer user_data)
 {
+  MusicApp* app = user_data;
+  music_app_reset_current_track_widget(app);
+  music_app_clear_track_widgets(app);
+
   guint position = gtk_drop_down_get_selected(dropdown);
   if (position != GTK_INVALID_LIST_POSITION) {
-    MusicApp* app = MUSIC_APP(user_data);
-    music_app_switch_playlist(app, music_app_get_playlist(app, position));
+    GPtrArray* tracks =
+      playlist_get_tracks(music_app_get_playlist(app, position));
+    for (int i = 0; i < tracks->len; i++) {
+      Track* track = g_ptr_array_index(tracks, i);
+      music_app_add_track_widget(app, track_widget_new(app, track));
+    }
   }
 }
 
@@ -272,18 +274,14 @@ change_playlist_info(gpointer user_data)
   const char* text = data->user_data1;
   GtkListItem* item = data->user_data2;
   Playlist* playlist = gtk_list_item_get_item(item);
-  GtkLabel* label;
 
   if (g_object_get_data(G_OBJECT(item), "flag")) {
     playlist_set_description(playlist, text);
-    label = GTK_LABEL(gtk_widget_get_last_child(gtk_list_item_get_child(item)));
     g_object_set_data(G_OBJECT(item), "flag", NULL);
   } else {
-    label =
-      GTK_LABEL(gtk_widget_get_first_child(gtk_list_item_get_child(item)));
     playlist_rename(playlist, text);
   }
-  gtk_label_set_text(label, text);
+
   playlist_save(playlist);
 }
 
@@ -299,9 +297,11 @@ playlist_clicked(GtkGestureClick* self,
   if (context_menu_get_callback() != change_playlist_info) {
     context_menu_set_callback(change_playlist_info);
   }
-  if (gtk_widget_get_parent(menu) != box) {
-    gtk_widget_unparent(menu);
-    gtk_widget_set_parent(menu, box);
+
+  gtk_widget_unparent(menu);
+  gtk_widget_set_parent(menu, box);
+  context_menu_set_data(user_data);
+  if (context_menu_get_data() != user_data) {
     context_menu_set_data(user_data);
   }
   gtk_popover_set_pointing_to(GTK_POPOVER(menu), &(GdkRectangle){ x, y, 1, 1 });
@@ -350,8 +350,7 @@ openFiles_cb(GtkFileDialog* source, GAsyncResult* res, gpointer user_data)
       guint length = playlist_get_length(playlist) - 1;
       while (index < length) {
         Track* track = playlist_get_track(playlist, index);
-        music_app_add_track_widget(
-          app, track_widget_configure(track_widget_new(app), app, track));
+        music_app_add_track_widget(app, track_widget_new(app, track));
         index++;
       }
     }
@@ -388,7 +387,7 @@ audioPositionScale_value_changed(GtkRange* self, gpointer user_data)
   } else {
     long int length = audio_system_get_length();
     if (length != -1) {
-      music_app_set_position_label_text(user_data, length);
+      music_app_update_position_label_by_length(user_data, length);
     }
   }
 }
@@ -403,7 +402,7 @@ audioPositionScale_pressed(GtkGestureClick* self,
   audio_system_set_is_manual_position(true);
   long int length = audio_system_get_length();
   if (length != -1) {
-    music_app_set_position_label_text(user_data, length);
+    music_app_update_position_label_by_length(user_data, length);
   }
 }
 
@@ -429,4 +428,27 @@ void
 media_player_length_changed(const libvlc_event_t* event, void* user_data)
 {
   g_idle_add(update_ui_from_length_changed, user_data);
+}
+
+void
+playlist_info_changed(Playlist* playlist, gpointer user_data)
+{
+  GtkLabel* nameLabel = NULL;
+  GtkLabel* descriptionLabel = NULL;
+  const char* name = playlist_get_name(playlist);
+  const char* desc = playlist_get_description(playlist);
+
+  GPtrArray* labels = g_object_get_data(G_OBJECT(user_data), "labels");
+  if (!labels) {
+    return;
+  }
+  nameLabel = GTK_LABEL(g_ptr_array_index(labels, 0));
+  descriptionLabel = GTK_LABEL(g_ptr_array_index(labels, 1));
+
+  if (g_strcmp0(gtk_label_get_text(nameLabel), name)) {
+    gtk_label_set_text(nameLabel, playlist_get_name(playlist));
+  }
+  if (g_strcmp0(gtk_label_get_text(descriptionLabel), desc)) {
+    gtk_label_set_text(descriptionLabel, playlist_get_description(playlist));
+  }
 }

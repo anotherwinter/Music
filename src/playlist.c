@@ -1,6 +1,13 @@
 #include "playlist.h"
 #include "filelister.h"
-#include "glib.h"
+
+enum
+{
+  INFO_CHANGED,
+  LAST_SIGNAL
+};
+
+static guint playlist_signals[LAST_SIGNAL] = { 0 };
 
 struct _Playlist
 {
@@ -41,6 +48,16 @@ playlist_init(Playlist* self)
 static void
 playlist_class_init(PlaylistClass* klass)
 {
+  playlist_signals[INFO_CHANGED] = g_signal_new("info-changed",
+                                                G_TYPE_FROM_CLASS(klass),
+                                                G_SIGNAL_RUN_LAST,
+                                                0,
+                                                NULL,
+                                                NULL,
+                                                g_cclosure_marshal_VOID__VOID,
+                                                G_TYPE_NONE,
+                                                0);
+
   G_OBJECT_CLASS(klass)->dispose = playlist_dispose;
   G_OBJECT_CLASS(klass)->finalize = playlist_finalize;
 }
@@ -58,6 +75,12 @@ playlist_new(gchar* name, gchar* path, PlaylistTypes type)
   playlist->endLine = G_MAXUINT;
 
   return playlist;
+}
+
+static void
+playlist_notify_change(Playlist* playlist)
+{
+  g_signal_emit(playlist, playlist_signals[INFO_CHANGED], 0);
 }
 
 void
@@ -111,19 +134,7 @@ playlist_rename(Playlist* playlist, const gchar* name)
     g_free(playlist->name);
   }
   playlist->name = g_strdup(name);
-}
-
-Track*
-playlist_remove_track_by_path(Playlist* playlist, gchar* trackPath)
-{
-  for (guint i = 0; i < playlist->tracks->len; i++) {
-    Track* track = g_ptr_array_index(playlist->tracks, i);
-    if (track->path == trackPath) {
-      g_ptr_array_remove_index(playlist->tracks, i);
-      return track;
-    }
-  }
-  return NULL;
+  playlist_notify_change(playlist);
 }
 
 Track*
@@ -526,4 +537,5 @@ playlist_set_description(Playlist* playlist, const gchar* str)
     g_free(playlist->description);
   }
   playlist->description = g_strdup(str);
+  playlist_notify_change(playlist);
 }

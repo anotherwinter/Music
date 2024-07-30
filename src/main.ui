@@ -50,6 +50,14 @@
           </object>
         </child>
         <child>
+          <object class="GtkSeparator">
+            <property name="can-focus">False</property>
+            <property name="can-target">False</property>
+            <property name="css-classes">boxSeparator</property>
+            <property name="focus-on-click">False</property>
+          </object>
+        </child>
+        <child>
           <object class="GtkBox" id="lowerBox">
             <property name="css-classes">lowerBox</property>
             <property name="orientation">vertical</property>
@@ -184,6 +192,21 @@
               </object>
             </child>
           </object>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkBox" id="selectedPlaylistWidget">
+    <child>
+      <object class="GtkLabel" id="selectedNameLabel"/>
+    </child>
+    <child>
+      <object class="GtkBox">
+        <child>
+          <object class="GtkLabel" id="selectedDescriptionLabel"/>
+        </child>
+        <child>
+          <object class="GtkLabel" id="selectedStatsLabel"/>
         </child>
       </object>
     </child>

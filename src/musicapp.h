@@ -12,16 +12,8 @@ MusicApp*
 music_app_new();
 Playlist*
 music_app_get_active_playlist(MusicApp* app);
-void
-music_app_set_active_playlist(MusicApp* app, Playlist* playlist);
 GtkWindow*
 music_app_get_main_window(MusicApp* app);
-GtkBox*
-music_app_get_tracks_box(MusicApp* app);
-GtkDropDown*
-music_app_get_dropdown(MusicApp* app);
-GListStore*
-music_app_get_liststore(MusicApp* app);
 void
 music_app_add_track_widget(MusicApp* app, TrackWidget* widget);
 void
@@ -51,23 +43,14 @@ music_app_set_options(MusicApp* app, PlaybackOptions options);
 void
 music_app_clear_track_widgets(MusicApp* app);
 
-GPtrArray*
-music_app_get_track_widgets(MusicApp* app);
 void
 music_app_update_track_widgets_indices(MusicApp* app);
 Playlist*
 music_app_get_playlist(MusicApp* app, guint index);
 void
 music_app_add_playlist(MusicApp* app, Playlist* playlist);
-
-// New playlist (which is not NULL obviously) must be added to playlists before
-// or after this call
-void
-music_app_switch_playlist(MusicApp* app, Playlist* new);
-
 void
 music_app_remove_playlist(MusicApp* app, guint index);
-
 void
 music_app_reset_current_track_widget(MusicApp* app);
 void
@@ -78,8 +61,6 @@ void
 music_app_duplicate_playlist(MusicApp* app, Playlist* playlist);
 void
 music_app_shift_playlists_lines(MusicApp* app, guint index, int offset);
-GtkScale*
-music_app_get_audio_position_scale(MusicApp* app);
 void
 music_app_update_audio_position_label(MusicApp* app);
 
@@ -87,8 +68,13 @@ music_app_update_audio_position_label(MusicApp* app);
 char*
 music_app_format_into_time_string(long int milliseconds);
 
+// Takes overall length in ms, then multiplies it by current progression (0.0 to 1.0)
+// and sets formatted string
 void
-music_app_set_position_label_text(MusicApp* app, long int milliseconds);
+music_app_update_position_label_by_length(MusicApp* app, long int milliseconds);
 void
 music_app_update_length_label(MusicApp* app);
-guint music_app_get_playlists_count(MusicApp* app);
+guint
+music_app_get_playlists_count(MusicApp* app);
+GtkScale*
+music_app_get_audio_position_scale(MusicApp* app);

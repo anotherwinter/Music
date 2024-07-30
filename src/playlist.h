@@ -25,8 +25,6 @@ playlist_get_track(Playlist* playlist, guint index);
 void
 playlist_rename(Playlist* playlist, const gchar* name);
 Track*
-playlist_remove_track_by_path(Playlist* playlist, gchar* trackPath);
-Track*
 playlist_remove_track_by_index(Playlist* playlist, guint index);
 bool
 playlist_is_folder(Playlist* playlist);

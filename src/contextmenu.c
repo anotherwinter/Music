@@ -1,8 +1,6 @@
 #include "contextmenu.h"
 #include "dialog.h"
-#include "glib-object.h"
 #include "gtk/gtk.h"
-#include "musicapp.h"
 #include "playlist.h"
 #include "timsort.h"
 #include "trackwidget.h"
@@ -23,7 +21,6 @@ on_remove_track_action(GSimpleAction* action,
                        GVariant* parameter,
                        gpointer user_data)
 {
-  gtk_widget_unparent(GTK_WIDGET(context_menu->trackWidgetMenu));
   music_app_remove_track_widget(context_menu->app,
                                 APP_TRACK_WIDGET(context_menu->data));
 }
@@ -46,11 +43,11 @@ on_add_tracks_action(GSimpleAction* action,
                      GVariant* parameter,
                      gpointer user_data)
 {
+  gtk_popover_popdown(GTK_POPOVER(context_menu->playlistMenu));
   DialogData* data = g_new(DialogData, 1);
   data->app = context_menu->app;
   data->user_data1 = context_menu->data;
   dialog_create_file_dialog(context_menu->app, data);
-  gtk_widget_activate(GTK_WIDGET(music_app_get_dropdown(context_menu->app)));
 }
 
 static void
@@ -58,9 +55,11 @@ on_rename_playlist_action(GSimpleAction* action,
                           GVariant* parameter,
                           gpointer user_data)
 {
-  gtk_widget_unparent(GTK_WIDGET(context_menu->playlistMenu));
-  dialog_create_text_input_for_app(
-    context_menu->app, context_menu->data, "Rename playlist...");
+  gtk_popover_popdown(GTK_POPOVER(context_menu->playlistMenu));
+  GtkWidget* dialog = GTK_WIDGET(dialog_create_text_input_for_app(
+    context_menu->app, context_menu->data, "Rename playlist..."));
+
+  gtk_widget_set_visible(dialog, TRUE);
 }
 
 static void
@@ -68,7 +67,6 @@ on_duplicate_playlist_action(GSimpleAction* action,
                              GVariant* parameter,
                              gpointer user_data)
 {
-  gtk_widget_unparent(GTK_WIDGET(context_menu->playlistMenu));
   music_app_duplicate_playlist(context_menu->app,
                                gtk_list_item_get_item(context_menu->data));
 }
@@ -78,8 +76,6 @@ on_remove_playlist_action(GSimpleAction* action,
                           GVariant* parameter,
                           gpointer user_data)
 {
-  gtk_widget_unparent(GTK_WIDGET(context_menu->playlistMenu));
-
   // Remove the item from the store, remove and free playlist and trackwidgets
   // associated with that item
   MusicApp* app = MUSIC_APP(context_menu->app);
@@ -91,10 +87,6 @@ on_remove_playlist_action(GSimpleAction* action,
   if (offset) {
     music_app_shift_playlists_lines(app, index, offset);
   }
-
-  // This is hack for fixing auto-select not emitting notify signal when
-  // appended to/removed from liststore
-  music_app_dropdown_select(app, GTK_INVALID_LIST_POSITION);
 }
 
 static void
@@ -102,10 +94,12 @@ on_change_playlist_description_action(GSimpleAction* action,
                                       GVariant* parameter,
                                       gpointer user_data)
 {
-  gtk_widget_unparent(GTK_WIDGET(context_menu->playlistMenu));
+  gtk_popover_popdown(GTK_POPOVER(context_menu->playlistMenu));
   g_object_set_data(context_menu->data, "flag", "1");
-  dialog_create_text_input_for_app(
-    context_menu->app, context_menu->data, "Change playlist description...");
+  GtkWidget* dialog = GTK_WIDGET(dialog_create_text_input_for_app(
+    context_menu->app, context_menu->data, "Rename playlist..."));
+
+  gtk_widget_set_visible(dialog, TRUE);
 }
 
 void
@@ -124,6 +118,7 @@ context_menu_init(MusicApp* app)
     G_MENU_MODEL(gtk_builder_get_object(builder, "trackwidget-menu"));
   context_menu->trackWidgetMenu =
     GTK_POPOVER_MENU(gtk_popover_menu_new_from_model(menu_model));
+  g_object_unref(menu_model);
 
   GSimpleAction* remove_track_action =
     g_simple_action_new("remove_track", NULL);
@@ -141,6 +136,7 @@ context_menu_init(MusicApp* app)
   menu_model = G_MENU_MODEL(gtk_builder_get_object(builder, "playlist-menu"));
   context_menu->playlistMenu =
     GTK_POPOVER_MENU(gtk_popover_menu_new_from_model(menu_model));
+  g_object_unref(menu_model);
 
   g_object_unref(builder);
 

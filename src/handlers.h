@@ -1,6 +1,7 @@
 #pragma once
 #include <gtk/gtk.h>
 #include <vlc/vlc.h>
+#include "playlist.h"
 
 void
 openFolder_clicked(GtkButton* self, gpointer user_data);
@@ -56,5 +57,7 @@ audioPositionScale_released(GtkGestureClick* self,
                             gdouble x,
                             gdouble y,
                             gpointer user_data);
-                            void
+void
 media_player_length_changed(const libvlc_event_t* event, void* user_data);
+void
+playlist_info_changed(Playlist* playlist, gpointer user_data);

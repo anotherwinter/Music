@@ -1,14 +1,12 @@
 #include "dialog.h"
-#include "glib-object.h"
-#include "gtk/gtk.h"
 #include "handlers.h"
 
-void
+GtkWindow*
 dialog_create_text_input_for_app(MusicApp* app,
                                  gpointer user_data,
                                  const char* title)
 {
-  GtkBuilder* builder = gtk_builder_new_from_file("main.ui");
+  GtkBuilder* builder = gtk_builder_new_from_resource("/org/aw/Music/main.ui");
   GtkWindow* dialog =
     GTK_WINDOW(gtk_builder_get_object(builder, "textInputDialog"));
   GtkWidget* entry = GTK_WIDGET(gtk_builder_get_object(builder, "dialogEntry"));
@@ -40,7 +38,8 @@ dialog_create_text_input_for_app(MusicApp* app,
                            "clicked",
                            G_CALLBACK(gtk_window_destroy),
                            GTK_WINDOW(dialog));
-  gtk_widget_set_visible(GTK_WIDGET(dialog), TRUE);
+
+  return dialog;
 }
 
 void

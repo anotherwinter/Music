@@ -9,12 +9,10 @@ typedef struct Track
   gchar* title;
   gchar* artist;
   guint index;
-  guint lineIndex;
   guint refCount;
 } Track;
 
-// Fetching track from path and setting index of line in playlists file if
-// needed, can be set to -1 if fetched for new playlist or from folder
+// Fetch track from path
 Track*
 fetch_track(gchar* path);
 void

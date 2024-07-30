@@ -7,9 +7,7 @@ G_DECLARE_FINAL_TYPE(TrackWidget, track_widget, APP, TRACK_WIDGET, GtkBox);
 typedef struct _TrackWidget TrackWidget;
 
 TrackWidget*
-track_widget_new(MusicApp* app);
-TrackWidget*
-track_widget_configure(TrackWidget* widget, MusicApp* app, Track* track);
+track_widget_new(MusicApp* app, Track* track);
 int
 track_widget_get_state(TrackWidget* widget);
 void

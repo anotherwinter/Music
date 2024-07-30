@@ -1,5 +1,4 @@
 #pragma once
-#include "gtk/gtk.h"
 #include "musicapp.h"
 
 typedef void (*ContextMenuCallback)(gpointer);
@@ -13,8 +12,6 @@ context_menu_init(MusicApp* app);
 // returns menu for playlist
 GtkPopoverMenu*
 context_menu_get_menu(bool trackwidget);
-void
-context_menu_set_menu(const char* path);
 void
 context_menu_set_data(gpointer data);
 gpointer
