@@ -60,8 +60,8 @@ merge(GPtrArray* arr, int l, int m, int r)
     g_ptr_array_index(arr, k++) = g_ptr_array_index(right, j++);
   }
 
-  g_ptr_array_free(left, FALSE);
-  g_ptr_array_free(right, FALSE);
+  g_ptr_array_free(left, TRUE);
+  g_ptr_array_free(right, TRUE);
 }
 
 void

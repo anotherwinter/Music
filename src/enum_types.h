@@ -9,14 +9,6 @@ typedef enum AudioState
 
 typedef enum
 {
-  TRACK_INACTIVE = 0,
-  TRACK_ACTIVE = 1,
-  TRACK_PLAYING = 2,
-  TRACK_PAUSED = 3
-} TrackWidgetState;
-
-typedef enum
-{
   PLAYBACK_NONE = 0,
   PLAYBACK_LOOP = 1,
   PLAYBACK_ONETRACK = 2,

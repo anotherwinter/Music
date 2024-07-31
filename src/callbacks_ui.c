@@ -1,156 +1,12 @@
-#include "handlers.h"
+#include "callbacks_ui.h"
 #include "audiosystem.h"
 #include "contextmenu.h"
 #include "dialog.h"
+#include "enum_types.h"
 #include "filelister.h"
 #include "musicapp.h"
+#include "playlist.h"
 #include "trackwidget.h"
-
-static void
-openFolder_cb(GtkFileDialog* source, GAsyncResult* res, gpointer user_data)
-{
-  MusicApp* app = MUSIC_APP(user_data);
-  GFile* folder = gtk_file_dialog_select_folder_finish(source, res, NULL);
-
-  if (folder == NULL)
-    return;
-
-  gchar* path = g_file_get_path(folder);
-  if (path != NULL) {
-    g_print("Selected folder: %s\n", path);
-    GPtrArray* arr = list_audio_files(path);
-
-    Playlist* playlist = playlist_new(path, path, PLAYLIST_FOLDER);
-
-    for (int i = 0; i < arr->len; i++) {
-      gpointer str = g_ptr_array_index(arr, i);
-
-      // We're not freeing str pointer because it will be passed to
-      // track and then stored in track struct
-      Track* track = fetch_track(str);
-      playlist_add(playlist, track);
-      g_print("%s\n", (gchar*)str);
-    }
-    music_app_add_playlist(app, playlist);
-    music_app_dropdown_select(app, 0);
-
-    g_free(path);
-    g_object_unref(folder);
-  }
-}
-
-void
-openFolder_clicked(GtkButton* self, gpointer user_data)
-{
-  MusicApp* app = MUSIC_APP(user_data);
-  GtkFileDialog* dialog = gtk_file_dialog_new();
-
-  gtk_file_dialog_set_title(dialog, "Choose directory");
-  gtk_file_dialog_set_modal(dialog, TRUE);
-  gtk_file_dialog_select_folder(dialog,
-                                music_app_get_main_window(app),
-                                NULL,
-                                (GAsyncReadyCallback)openFolder_cb,
-                                app);
-}
-
-void
-playtrackButton_clicked(GtkButton* self, gpointer user_data)
-{
-  MusicApp* app = MUSIC_APP(user_data);
-  TrackWidget* current = music_app_get_current_track_widget(app);
-  TrackWidget* new = APP_TRACK_WIDGET(gtk_widget_get_parent(GTK_WIDGET(self)));
-  if (audio_system_is_playing()) {
-    int active = track_widget_get_state(new);
-
-    // Assuming that if new widget is active, then it's the same widget as
-    // previous therefore it can't be NULL
-    if (active) {
-      if (audio_system_is_paused()) {
-        track_widget_set_state(current, TRACK_PLAYING);
-        audio_system_resume_audio();
-      } else {
-        track_widget_set_state(current, TRACK_PAUSED);
-        audio_system_pause_audio();
-      }
-      music_app_switch_playback_icon(app, BUTTON_PLAY);
-      return;
-    }
-  }
-  music_app_play_widget(app, new);
-}
-
-void
-shuffleButton_clicked(GtkButton* self, gpointer user_data)
-{
-  MusicApp* app = MUSIC_APP(user_data);
-  music_app_set_options(app, music_app_get_options(app) ^ PLAYBACK_SHUFFLE);
-  music_app_switch_playback_icon(app, BUTTON_SHUFFLE);
-}
-
-void
-loopButton_clicked(GtkButton* self, gpointer user_data)
-{
-  MusicApp* app = MUSIC_APP(user_data);
-  PlaybackOptions options = music_app_get_options(app);
-  if (options & PLAYBACK_ONETRACK) {
-    options = (options ^ PLAYBACK_ONETRACK) ^ PLAYBACK_LOOP;
-    music_app_set_options(app, options);
-  } else {
-    if (options & PLAYBACK_LOOP) {
-      music_app_set_options(app, options ^ PLAYBACK_LOOP);
-    } else {
-      music_app_set_options(app, options ^ PLAYBACK_ONETRACK);
-    }
-  }
-  music_app_switch_playback_icon(app, BUTTON_LOOP);
-}
-
-static gboolean
-update_ui_from_music_finished(gpointer user_data)
-{
-  if (audio_system_is_stopped()) {
-    return G_SOURCE_REMOVE;
-  }
-
-  MusicApp* app = MUSIC_APP(user_data);
-
-  gtk_range_set_value(GTK_RANGE(music_app_get_audio_position_scale(app)), 1.0f);
-
-  PlaybackOptions options = music_app_get_options(app);
-  if (options & PLAYBACK_ONETRACK) {
-    audio_system_play_audio();
-    return G_SOURCE_REMOVE;
-  }
-  TrackWidget* widget = music_app_get_current_track_widget(app);
-
-  if (options == PLAYBACK_NONE) {
-    track_widget_set_state(widget, TRACK_INACTIVE);
-    audio_system_stop_audio();
-    music_app_switch_playback_icon(app, BUTTON_PLAY);
-    return G_SOURCE_REMOVE;
-  }
-
-  Playlist* playlist = music_app_get_active_playlist(app);
-  Track* track = track_widget_get_track(widget);
-  if (options & PLAYBACK_SHUFFLE) {
-    while (track->index == track_widget_get_index(widget)) {
-      track =
-        playlist_get_track(playlist, rand() % playlist_get_length(playlist));
-    }
-  } else {
-    track = playlist_get_next_track(playlist, track->index);
-  }
-  music_app_play_widget(app, music_app_get_track_widget(app, track->index));
-
-  return G_SOURCE_REMOVE;
-}
-
-void
-music_finished(const libvlc_event_t* event, void* user_data)
-{
-  g_idle_add(update_ui_from_music_finished, user_data);
-}
 
 void
 volumeScale_value_changed(GtkRange* self, gpointer user_data)
@@ -162,55 +18,60 @@ void
 prevButton_clicked(GtkButton* self, gpointer user_data)
 {
   MusicApp* app = MUSIC_APP(user_data);
-  TrackWidget* widget = music_app_get_current_track_widget(app);
-  Track* track = playlist_get_prev_track(music_app_get_active_playlist(app),
-                                         track_widget_get_index(widget));
-  music_app_play_widget(app, music_app_get_track_widget(app, track->index));
+  Track* track =
+    playlist_get_prev_track(music_app_get_active_playlist(app),
+                            music_app_get_current_track(app)->index);
+  music_app_set_current_track(app, track);
+  music_app_play_track(app);
 }
 
 void
 nextButton_clicked(GtkButton* self, gpointer user_data)
 {
   MusicApp* app = MUSIC_APP(user_data);
-  TrackWidget* currentWidget = music_app_get_current_track_widget(app);
-  Track* track = NULL;
+  Track* track = music_app_get_current_track(app);
   if (music_app_get_options(app) & PLAYBACK_SHUFFLE) {
     Playlist* playlist = music_app_get_active_playlist(app);
-    track = track_widget_get_track(currentWidget);
-    while (track->index == track_widget_get_index(currentWidget)) {
+    guint index = track->index;
+    while (track->index == index) {
       track =
         playlist_get_track(playlist, rand() % playlist_get_length(playlist));
     }
   } else {
-    track = playlist_get_next_track(music_app_get_active_playlist(app),
-                                    track_widget_get_index(currentWidget));
+    track =
+      playlist_get_next_track(music_app_get_active_playlist(app), track->index);
   }
-  music_app_play_widget(app, music_app_get_track_widget(app, track->index));
+  music_app_set_current_track(app, track);
+  music_app_play_track(app);
 }
 
 void
 playButton_clicked(GtkButton* self, gpointer user_data)
 {
   MusicApp* app = MUSIC_APP(user_data);
-  TrackWidget* widget = music_app_get_current_track_widget(app);
-  if (widget == NULL) {
-    widget = music_app_get_track_widget(app, 0);
-    if (widget == NULL)
-      return;
-    music_app_play_widget(app, widget);
+  Track* current = music_app_get_current_track(app);
+  if (current == NULL) {
+    Playlist* playlist = music_app_get_selected_playlist(app);
+    if (playlist != NULL) {
+      current = playlist_get_track(playlist, 0);
+      if (current == NULL)
+        return;
+      music_app_set_current_track(app, current);
+      music_app_set_active_playlist(app, playlist);
+      music_app_play_track(app);
+    }
     return;
   }
-  if (audio_system_is_playing()) {
+  if (audio_system_get_state() == AUDIO_PLAYING) {
     audio_system_pause_audio();
-    track_widget_set_state(widget, TRACK_PAUSED);
   } else {
-    if (audio_system_is_stopped()) {
-      if (audio_system_open_audio(track_widget_get_track(widget)->path) == -1)
+    if (audio_system_get_state() == AUDIO_STOPPED) {
+      if (audio_system_open_audio(current->path) == -1)
         return;
     }
     audio_system_play_audio();
-    track_widget_set_state(widget, TRACK_PLAYING);
   }
+  music_app_update_current_track_widget(app, audio_system_get_state());
   music_app_switch_playback_icon(app, BUTTON_PLAY);
 }
 
@@ -245,7 +106,9 @@ createPlaylist_clicked(GtkButton* self, gpointer user_data)
   }
   current =
     playlist_new(g_strdup("New Playlist"), g_strdup("playlists"), PLAYLIST_NEW);
+
   music_app_add_playlist(app, current);
+
   music_app_dropdown_select(app, ++lastIndex);
 }
 
@@ -253,16 +116,19 @@ void
 selection_changed(GtkDropDown* dropdown, GParamSpec* pspec, gpointer user_data)
 {
   MusicApp* app = user_data;
-  music_app_reset_current_track_widget(app);
+  Track* track = NULL;
   music_app_clear_track_widgets(app);
-
   guint position = gtk_drop_down_get_selected(dropdown);
   if (position != GTK_INVALID_LIST_POSITION) {
-    GPtrArray* tracks =
-      playlist_get_tracks(music_app_get_playlist(app, position));
+    Playlist* playlist = music_app_get_playlist(app, position);
+    GPtrArray* tracks = playlist_get_tracks(playlist);
     for (int i = 0; i < tracks->len; i++) {
-      Track* track = g_ptr_array_index(tracks, i);
+      track = g_ptr_array_index(tracks, i);
       music_app_add_track_widget(app, track_widget_new(app, track));
+    }
+    track = music_app_get_current_track(app);
+    if (track != NULL && track == g_ptr_array_index(tracks, track->index)) {
+      music_app_update_current_track_widget(app, audio_system_get_state());
     }
   }
 }
@@ -324,7 +190,7 @@ on_text_field_dialog_response(GtkButton* self, gpointer user_data)
     }
   }
 
-  gtk_window_destroy(dialog);
+  dialog_free(dialog);
   g_free(data);
 }
 
@@ -345,7 +211,7 @@ openFiles_cb(GtkFileDialog* source, GAsyncResult* res, gpointer user_data)
       g_object_unref(file);
       g_free(path);
     }
-    if (playlist == music_app_get_active_playlist(app)) {
+    if (playlist == music_app_get_selected_playlist(app)) {
       guint index = playlist_get_length(playlist) - appendCount;
       guint length = playlist_get_length(playlist) - 1;
       while (index < length) {
@@ -358,24 +224,6 @@ openFiles_cb(GtkFileDialog* source, GAsyncResult* res, gpointer user_data)
 
     g_free(data);
     g_object_unref(list);
-  }
-}
-
-static gboolean
-update_ui_from_time_changed(gpointer user_data)
-{
-  gtk_range_set_value(GTK_RANGE(user_data), audio_system_get_audio_position());
-  return G_SOURCE_REMOVE;
-}
-
-void
-music_time_changed(const libvlc_event_t* event, void* user_data)
-{
-  if (!audio_system_is_manual_position()) {
-    // Because it's not thread-safe to access/change UI elements from all but
-    // main thread (vlc runs in some other thread) we should queue changes in
-    // main thread using g_idle_add
-    g_idle_add(update_ui_from_time_changed, user_data);
   }
 }
 
@@ -417,17 +265,103 @@ audioPositionScale_released(GtkGestureClick* self,
   audio_system_set_is_manual_position(false);
 }
 
-static gboolean
-update_ui_from_length_changed(gpointer user_data)
+static void
+openFolder_cb(GtkFileDialog* source, GAsyncResult* res, gpointer user_data)
 {
-  music_app_update_length_label(user_data);
-  return G_SOURCE_REMOVE;
+  MusicApp* app = MUSIC_APP(user_data);
+  GFile* folder = gtk_file_dialog_select_folder_finish(source, res, NULL);
+
+  if (folder == NULL)
+    return;
+
+  gchar* path = g_file_get_path(folder);
+  if (path != NULL) {
+    GPtrArray* arr = list_audio_files(path);
+
+    Playlist* playlist = playlist_new(path, path, PLAYLIST_FOLDER);
+
+    for (int i = 0; i < arr->len; i++) {
+      gpointer str = g_ptr_array_index(arr, i);
+
+      // We're not freeing str pointer because it will be passed to
+      // track and then stored in track struct
+      Track* track = fetch_track(str);
+      playlist_add(playlist, track);
+    }
+    music_app_add_playlist(app, playlist);
+    music_app_dropdown_select(app, 0);
+
+    g_free(path);
+    g_object_unref(folder);
+  }
 }
 
 void
-media_player_length_changed(const libvlc_event_t* event, void* user_data)
+openFolder_clicked(GtkButton* self, gpointer user_data)
 {
-  g_idle_add(update_ui_from_length_changed, user_data);
+  MusicApp* app = MUSIC_APP(user_data);
+  GtkFileDialog* dialog = gtk_file_dialog_new();
+
+  gtk_file_dialog_set_title(dialog, "Choose directory");
+  gtk_file_dialog_set_modal(dialog, TRUE);
+  gtk_file_dialog_select_folder(dialog,
+                                music_app_get_main_window(app),
+                                NULL,
+                                (GAsyncReadyCallback)openFolder_cb,
+                                app);
+}
+
+void
+playtrackButton_clicked(GtkButton* self, gpointer user_data)
+{
+  MusicApp* app = MUSIC_APP(user_data);
+  Track* current = music_app_get_current_track(app);
+  Track* new = track_widget_get_track(
+    APP_TRACK_WIDGET(gtk_widget_get_parent(GTK_WIDGET(self))));
+  music_app_set_active_playlist(app, music_app_get_selected_playlist(app));
+
+  if (audio_system_get_state() == AUDIO_PLAYING) {
+
+    // Assuming that if new widget is active, then it's the same widget as
+    // previous therefore it can't be NULL
+    if (current == new) {
+      if (audio_system_get_state() == AUDIO_PAUSED) {
+        audio_system_resume_audio();
+      } else {
+        audio_system_pause_audio();
+      }
+      music_app_switch_playback_icon(app, BUTTON_PLAY);
+      return;
+    }
+  }
+  music_app_set_current_track(app, new);
+  music_app_play_track(app);
+}
+
+void
+shuffleButton_clicked(GtkButton* self, gpointer user_data)
+{
+  MusicApp* app = MUSIC_APP(user_data);
+  music_app_set_options(app, music_app_get_options(app) ^ PLAYBACK_SHUFFLE);
+  music_app_switch_playback_icon(app, BUTTON_SHUFFLE);
+}
+
+void
+loopButton_clicked(GtkButton* self, gpointer user_data)
+{
+  MusicApp* app = MUSIC_APP(user_data);
+  PlaybackOptions options = music_app_get_options(app);
+  if (options & PLAYBACK_ONETRACK) {
+    options = (options ^ PLAYBACK_ONETRACK) ^ PLAYBACK_LOOP;
+    music_app_set_options(app, options);
+  } else {
+    if (options & PLAYBACK_LOOP) {
+      music_app_set_options(app, options ^ PLAYBACK_LOOP);
+    } else {
+      music_app_set_options(app, options ^ PLAYBACK_ONETRACK);
+    }
+  }
+  music_app_switch_playback_icon(app, BUTTON_LOOP);
 }
 
 void

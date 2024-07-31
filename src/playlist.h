@@ -13,8 +13,6 @@ typedef struct _Playlist Playlist;
 Playlist*
 playlist_new(gchar* name, gchar* path, PlaylistTypes type);
 void
-playlist_free(Playlist* playlist);
-void
 playlist_populate(Playlist* playlist, GPtrArray* tracks);
 guint
 playlist_get_length(Playlist* playlist);

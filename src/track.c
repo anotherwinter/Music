@@ -1,5 +1,6 @@
 #include "track.h"
 #include "glib.h"
+#include <stdio.h>
 #include <taglib/tag_c.h>
 
 Track*
@@ -31,7 +32,7 @@ fetch_track(gchar* path)
 }
 
 void
-track_free(Track* track)
+track_unref(Track* track)
 {
   track->refCount--;
   if (track->refCount == 0) {

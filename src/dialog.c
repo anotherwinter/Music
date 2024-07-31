@@ -1,5 +1,23 @@
 #include "dialog.h"
-#include "handlers.h"
+#include "callbacks_ui.h"
+
+static void
+dialog_close(GtkButton* self, gpointer user_data)
+{
+  dialog_free(user_data);
+}
+
+void
+dialog_free(GtkWindow* dialog)
+{
+  g_signal_handlers_disconnect_by_func(
+    dialog, on_text_field_dialog_response, NULL);
+  g_signal_handlers_disconnect_by_func(dialog, dialog_close, NULL);
+  gtk_window_close(dialog);
+  gtk_window_destroy(dialog);
+  gtk_widget_unparent(GTK_WIDGET(dialog));
+  gtk_window_set_transient_for(dialog, NULL);
+}
 
 GtkWindow*
 dialog_create_text_input_for_app(MusicApp* app,
@@ -14,6 +32,8 @@ dialog_create_text_input_for_app(MusicApp* app,
     GTK_WIDGET(gtk_builder_get_object(builder, "okButton"));
   GtkWidget* cancel_button =
     GTK_WIDGET(gtk_builder_get_object(builder, "cancelButton"));
+
+  g_object_unref(builder);
 
   gtk_window_set_modal(dialog, TRUE);
   gtk_window_set_transient_for(dialog, music_app_get_main_window(app));
@@ -34,10 +54,7 @@ dialog_create_text_input_for_app(MusicApp* app,
 
   g_signal_connect(
     ok_button, "clicked", G_CALLBACK(on_text_field_dialog_response), data);
-  g_signal_connect_swapped(cancel_button,
-                           "clicked",
-                           G_CALLBACK(gtk_window_destroy),
-                           GTK_WINDOW(dialog));
+  g_signal_connect(cancel_button, "clicked", G_CALLBACK(dialog_close), dialog);
 
   return dialog;
 }

@@ -12,6 +12,10 @@ MusicApp*
 music_app_new();
 Playlist*
 music_app_get_active_playlist(MusicApp* app);
+void
+music_app_set_active_playlist(MusicApp* app, Playlist* playlist);
+Playlist*
+music_app_get_selected_playlist(MusicApp* app);
 GtkWindow*
 music_app_get_main_window(MusicApp* app);
 void
@@ -20,18 +24,16 @@ void
 music_app_remove_track_widget(MusicApp* app, TrackWidget* widget);
 void
 music_app_switch_playback_icon(MusicApp* app, ButtonTypes type);
-TrackWidget*
-music_app_get_current_track_widget(MusicApp* app);
+Track*
+music_app_get_current_track(MusicApp* app);
 
 // Sets new current track widget, index is optional and can be G_MAXUINT to set
 // by widget, firstly it tries to set by index, then by widget pointer. Current
 // track widget can be "cleared" by setting widget to NULL and index to
 // G_MAXUINT: there is music_app_reset_current_track_widget() for that task
 void
-music_app_set_current_track_widget(MusicApp* app,
-                                   TrackWidget* widget,
-                                   guint index,
-                                   TrackWidgetState state);
+music_app_set_current_track(MusicApp* app, Track* track);
+
 TrackWidget*
 music_app_get_track_widget(MusicApp* app, guint index);
 PlaybackOptions
@@ -52,11 +54,9 @@ music_app_add_playlist(MusicApp* app, Playlist* playlist);
 void
 music_app_remove_playlist(MusicApp* app, guint index);
 void
-music_app_reset_current_track_widget(MusicApp* app);
-void
 music_app_dropdown_select(MusicApp* app, guint index);
 void
-music_app_play_widget(MusicApp* app, TrackWidget* widget);
+music_app_play_track(MusicApp* app);
 void
 music_app_duplicate_playlist(MusicApp* app, Playlist* playlist);
 void
@@ -68,8 +68,8 @@ music_app_update_audio_position_label(MusicApp* app);
 char*
 music_app_format_into_time_string(long int milliseconds);
 
-// Takes overall length in ms, then multiplies it by current progression (0.0 to 1.0)
-// and sets formatted string
+// Takes overall length in ms, then multiplies it by current progression (0.0
+// to 1.0) and sets formatted string
 void
 music_app_update_position_label_by_length(MusicApp* app, long int milliseconds);
 void
@@ -78,3 +78,5 @@ guint
 music_app_get_playlists_count(MusicApp* app);
 GtkScale*
 music_app_get_audio_position_scale(MusicApp* app);
+void
+music_app_update_current_track_widget(MusicApp* app, AudioState state);

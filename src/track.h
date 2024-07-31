@@ -16,6 +16,6 @@ typedef struct Track
 Track*
 fetch_track(gchar* path);
 void
-track_free(Track* track);
+track_unref(Track* track);
 void
 track_ref(Track* track);

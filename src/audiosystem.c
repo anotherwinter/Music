@@ -1,6 +1,7 @@
 #include "audiosystem.h"
 #include "enum_types.h"
 #include "filelister.h"
+#include <vlc/libvlc_events.h>
 
 struct AudioSystem
 {
@@ -19,13 +20,15 @@ audio_system_init()
 
   instance = malloc(sizeof(AudioSystem));
   if (instance == NULL) {
-    printf("ERROR: audio_system_init(): Failed to allocate memory for audiosystem\n");
+    printf("ERROR: audio_system_init(): Failed to allocate memory for "
+           "audiosystem\n");
     return -1;
   }
   const char* vlc_args[] = { "--no-video" };
   instance->vlc_instance = libvlc_new(1, vlc_args);
   instance->player = libvlc_media_player_new(instance->vlc_instance);
   instance->state = AUDIO_STOPPED;
+  instance->manual = false;
 
   return 0;
 }
@@ -54,7 +57,8 @@ audio_system_open_audio(const char* path)
   }
   instance->media = libvlc_media_new_path(instance->vlc_instance, path);
   if (!instance->media) {
-    printf("ERROR: audio_system_open_audio(): Failed to open music for '%s'\n", path);
+    printf("ERROR: audio_system_open_audio(): Failed to open music for '%s'\n",
+           path);
     return -1;
   }
   libvlc_media_player_set_media(instance->player, instance->media);
@@ -102,21 +106,9 @@ audio_system_resume_audio()
 }
 
 int
-audio_system_is_playing()
+audio_system_get_state()
 {
-  return instance->state == AUDIO_PLAYING;
-}
-
-int
-audio_system_is_paused()
-{
-  return instance->state == AUDIO_PAUSED;
-}
-
-int
-audio_system_is_stopped()
-{
-  return instance->state == AUDIO_STOPPED;
+  return instance->state;
 }
 
 void

@@ -30,7 +30,7 @@ on_sort_tracks_action(GSimpleAction* action,
                       GVariant* parameter,
                       gpointer user_data)
 {
-  Playlist* playlist = music_app_get_active_playlist(context_menu->app);
+  Playlist* playlist = music_app_get_selected_playlist(context_menu->app);
   playlist_reverse(playlist);
   timSort(playlist_get_tracks(playlist));
   playlist_save(playlist);
@@ -43,7 +43,6 @@ on_add_tracks_action(GSimpleAction* action,
                      GVariant* parameter,
                      gpointer user_data)
 {
-  gtk_popover_popdown(GTK_POPOVER(context_menu->playlistMenu));
   DialogData* data = g_new(DialogData, 1);
   data->app = context_menu->app;
   data->user_data1 = context_menu->data;
@@ -55,7 +54,6 @@ on_rename_playlist_action(GSimpleAction* action,
                           GVariant* parameter,
                           gpointer user_data)
 {
-  gtk_popover_popdown(GTK_POPOVER(context_menu->playlistMenu));
   GtkWidget* dialog = GTK_WIDGET(dialog_create_text_input_for_app(
     context_menu->app, context_menu->data, "Rename playlist..."));
 
@@ -94,7 +92,6 @@ on_change_playlist_description_action(GSimpleAction* action,
                                       GVariant* parameter,
                                       gpointer user_data)
 {
-  gtk_popover_popdown(GTK_POPOVER(context_menu->playlistMenu));
   g_object_set_data(context_menu->data, "flag", "1");
   GtkWidget* dialog = GTK_WIDGET(dialog_create_text_input_for_app(
     context_menu->app, context_menu->data, "Rename playlist..."));
@@ -226,4 +223,31 @@ context_menu_trigger_callback(gpointer user_data)
   if (context_menu->callback != NULL) {
     context_menu->callback(user_data);
   }
+}
+
+void
+context_menu_free()
+{
+  g_action_map_remove_action(G_ACTION_MAP(context_menu->app), "remove_track");
+  g_action_map_remove_action(G_ACTION_MAP(context_menu->app), "sort_tracks");
+  g_action_map_remove_action(G_ACTION_MAP(context_menu->app), "add_tracks");
+  g_action_map_remove_action(G_ACTION_MAP(context_menu->app),
+                             "rename_playlist");
+  g_action_map_remove_action(G_ACTION_MAP(context_menu->app),
+                             "change_playlist_description");
+  g_action_map_remove_action(G_ACTION_MAP(context_menu->app),
+                             "duplicate_playlist");
+  g_action_map_remove_action(G_ACTION_MAP(context_menu->app),
+                             "remove_playlist");
+  context_menu->data = NULL;
+  context_menu->app = NULL;
+  context_menu->callback = NULL;
+  g_object_unref(
+    gtk_popover_menu_get_menu_model(context_menu->trackWidgetMenu));
+  g_object_unref(gtk_popover_menu_get_menu_model(context_menu->playlistMenu));
+  gtk_widget_unparent(GTK_WIDGET(context_menu->playlistMenu));
+  gtk_widget_unparent(GTK_WIDGET(context_menu->trackWidgetMenu));
+  context_menu->playlistMenu = NULL;
+  context_menu->trackWidgetMenu = NULL;
+  g_free(context_menu);
 }

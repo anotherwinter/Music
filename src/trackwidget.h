@@ -8,10 +8,8 @@ typedef struct _TrackWidget TrackWidget;
 
 TrackWidget*
 track_widget_new(MusicApp* app, Track* track);
-int
-track_widget_get_state(TrackWidget* widget);
 void
-track_widget_set_state(TrackWidget* widget, TrackWidgetState state);
+track_widget_set_icon(TrackWidget* widget, AudioState state);
 Track*
 track_widget_get_track(TrackWidget* widget);
 void

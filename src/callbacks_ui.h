@@ -1,18 +1,7 @@
 #pragma once
-#include <gtk/gtk.h>
-#include <vlc/vlc.h>
+#include "gtk/gtk.h"
 #include "playlist.h"
 
-void
-openFolder_clicked(GtkButton* self, gpointer user_data);
-void
-playtrackButton_clicked(GtkButton* self, gpointer user_data);
-void
-music_finished(const libvlc_event_t* event, void* user_data);
-void
-shuffleButton_clicked(GtkButton* self, gpointer user_data);
-void
-loopButton_clicked(GtkButton* self, gpointer user_data);
 void
 volumeScale_value_changed(GtkRange* self, gpointer user_data);
 void
@@ -42,8 +31,6 @@ on_text_field_dialog_response(GtkButton* self, gpointer user_data);
 void
 openFiles_cb(GtkFileDialog* source, GAsyncResult* res, gpointer user_data);
 void
-music_time_changed(const libvlc_event_t* event, void* user_data);
-void
 audioPositionScale_value_changed(GtkRange* self, gpointer user_data);
 void
 audioPositionScale_pressed(GtkGestureClick* self,
@@ -58,6 +45,12 @@ audioPositionScale_released(GtkGestureClick* self,
                             gdouble y,
                             gpointer user_data);
 void
-media_player_length_changed(const libvlc_event_t* event, void* user_data);
+openFolder_clicked(GtkButton* self, gpointer user_data);
+void
+playtrackButton_clicked(GtkButton* self, gpointer user_data);
+void
+shuffleButton_clicked(GtkButton* self, gpointer user_data);
+void
+loopButton_clicked(GtkButton* self, gpointer user_data);
 void
 playlist_info_changed(Playlist* playlist, gpointer user_data);

@@ -1,9 +1,13 @@
 #include "musicapp.h"
 #include "audiosystem.h"
+#include "callbacks_playback.h"
+#include "callbacks_ui.h"
 #include "contextmenu.h"
+#include "enum_types.h"
 #include "factory.h"
-#include "handlers.h"
+#include "playlist.h"
 #include "resources.h"
+#include "track.h"
 #include "trackwidget.h"
 
 struct _MusicApp
@@ -43,9 +47,10 @@ struct _MusicApp
   GtkWidget* loopActiveImage;
   GtkPopover* dropDownPopover;
 
+  GtkListItemFactory* factory;
   GPtrArray* trackWidgets;
   Playlist* active;
-  TrackWidget* current;
+  Track* current;
   PlaybackOptions options;
 };
 
@@ -62,6 +67,36 @@ init_systems()
 }
 
 static void
+music_app_dispose(GApplication* object)
+{
+  MusicApp* app = MUSIC_APP(object);
+
+  if (app->trackWidgets) {
+    g_ptr_array_free(app->trackWidgets, TRUE);
+    app->trackWidgets = NULL;
+  }
+
+  GListModel* list = G_LIST_MODEL(app->playlistLS);
+  while (g_list_model_get_n_items(list) > 0) {
+    guint index = g_list_model_get_n_items(list) - 1;
+    Playlist* playlist = g_list_model_get_item(list, index);
+    g_object_unref(playlist);
+    g_list_store_remove(app->playlistLS, index);
+  }
+
+  g_object_unref(app->playlistLS);
+  g_object_unref(app->factory);
+  app->playlistLS = NULL;
+  app->factory = NULL;
+  app->active = NULL;
+  app->current = NULL;
+
+  context_menu_free();
+
+  G_APPLICATION_CLASS(music_app_parent_class)->shutdown(object);
+}
+
+static void
 music_app_init(MusicApp* app)
 {
   init_systems();
@@ -75,18 +110,17 @@ fetch_playlists(MusicApp* app, gchar* path)
   if (playlists->len > 0) {
     for (guint i = 0; i < playlists->len; i++) {
       g_list_store_append(app->playlistLS, g_ptr_array_index(playlists, i));
+      g_object_unref(g_ptr_array_index(playlists, i));
     }
-
-    // Active playlist is being switched automatically in selection_changed()
-    // callback, so no need to call music_app_switch_active_playlist()
-    music_app_dropdown_select(app, 0);
   }
+  g_ptr_array_free(playlists, TRUE);
 }
 
 static void
 setup_factories(MusicApp* app)
 {
-  gtk_drop_down_set_factory(app->playlistDD, music_app_setup_list_factory(app));
+  app->factory = music_app_setup_list_factory(app);
+  gtk_drop_down_set_factory(app->playlistDD, app->factory);
 
   g_signal_connect(
     app->playlistDD, "notify::selected", G_CALLBACK(selection_changed), app);
@@ -262,7 +296,6 @@ static void
 music_app_activate(GApplication* app)
 {
   MusicApp* this = MUSIC_APP(app);
-
   GResource* resource = resources_get_resource();
   g_resources_register(resource);
 
@@ -297,6 +330,7 @@ static void
 music_app_class_init(MusicAppClass* klass)
 {
   G_APPLICATION_CLASS(klass)->activate = music_app_activate;
+  G_APPLICATION_CLASS(klass)->shutdown = music_app_dispose;
 }
 
 MusicApp*
@@ -312,6 +346,18 @@ music_app_new()
 
 Playlist*
 music_app_get_active_playlist(MusicApp* app)
+{
+  return app->active;
+}
+
+void
+music_app_set_active_playlist(MusicApp* app, Playlist* playlist)
+{
+  app->active = playlist;
+}
+
+Playlist*
+music_app_get_selected_playlist(MusicApp* app)
 {
   return gtk_drop_down_get_selected_item(app->playlistDD);
 }
@@ -334,18 +380,18 @@ music_app_remove_track_widget(MusicApp* app, TrackWidget* widget)
 {
   int index = track_widget_get_index(widget);
 
-  if (app->current == widget) {
-    music_app_reset_current_track_widget(app);
-  }
-
   g_ptr_array_remove_index(app->trackWidgets, index);
 
-  Track* track = playlist_remove_track_by_index(
-    music_app_get_active_playlist(app), track_widget_get_track(widget)->index);
-  if (track != NULL) { // Free track pointer if trackwidget had it
-    track_free(track);
+  Track* track =
+    playlist_remove_track_by_index(music_app_get_selected_playlist(app), index);
+  if (track != NULL) {
+    if (app->current == track) {
+      music_app_set_current_track(app, NULL);
+    }
+    track_unref(track);
   }
-  int offset = playlist_save(music_app_get_active_playlist(app));
+
+  int offset = playlist_save(music_app_get_selected_playlist(app));
   if (offset) {
     music_app_shift_playlists_lines(app, index, offset);
   }
@@ -390,7 +436,7 @@ music_app_switch_playback_icon(MusicApp* app, ButtonTypes type)
 {
   switch (type) {
     case BUTTON_PLAY: {
-      if (audio_system_is_playing()) {
+      if (audio_system_get_state() == AUDIO_PLAYING) {
         gtk_button_set_child(app->playButton, app->pauseImage);
       } else {
         gtk_button_set_child(app->playButton, app->playImage);
@@ -420,28 +466,24 @@ music_app_switch_playback_icon(MusicApp* app, ButtonTypes type)
   }
 }
 
-TrackWidget*
-music_app_get_current_track_widget(MusicApp* app)
+Track*
+music_app_get_current_track(MusicApp* app)
 {
   return app->current;
 }
 
 void
-music_app_set_current_track_widget(MusicApp* app,
-                                   TrackWidget* widget,
-                                   guint index,
-                                   TrackWidgetState state)
+music_app_set_current_track(MusicApp* app, Track* track)
 {
   if (app->current != NULL) {
-    track_widget_set_state(app->current, TRACK_INACTIVE);
+    audio_system_stop_audio();
+    music_app_update_current_track_widget(app, AUDIO_STOPPED);
+    track_unref(app->current);
   }
-  if (index != G_MAXUINT) {
-    widget = music_app_get_track_widget(app, index);
-  }
-  if (widget != NULL) {
-    app->current = widget;
-    track_widget_set_state(app->current, state);
-    gtk_label_set_text(app->trackLabel, track_widget_get_track(widget)->title);
+  if (track != NULL) {
+    app->current = track;
+    gtk_label_set_text(app->trackLabel, track->title);
+    track_ref(track);
   } else {
     app->current = NULL;
     gtk_label_set_text(app->trackLabel, "No track...");
@@ -471,7 +513,6 @@ music_app_set_options(MusicApp* app, PlaybackOptions options)
 void
 music_app_clear_track_widgets(MusicApp* app)
 {
-  music_app_reset_current_track_widget(app);
   TrackWidget* widget = NULL;
   while (app->trackWidgets->len > 0) {
     widget =
@@ -503,7 +544,10 @@ music_app_get_playlist(MusicApp* app, guint index)
 {
   if (index >= g_list_model_get_n_items(G_LIST_MODEL(app->playlistLS)))
     return NULL;
-  return g_list_model_get_item(G_LIST_MODEL(app->playlistLS), index);
+  Playlist* playlist =
+    g_list_model_get_item(G_LIST_MODEL(app->playlistLS), index);
+  g_object_unref(playlist);
+  return playlist;
 }
 
 void
@@ -515,12 +559,17 @@ music_app_add_playlist(MusicApp* app, Playlist* playlist)
       if (app->active == first) {
         music_app_clear_track_widgets(app);
       }
-      g_list_store_remove(app->playlistLS, 0);
+      GObject* new = G_OBJECT(playlist);
+      g_list_store_splice(app->playlistLS, 0, 1, (gpointer) & new, 1);
+    } else {
+      g_list_store_insert(app->playlistLS, 0, playlist);
     }
-    g_list_store_insert(app->playlistLS, 0, playlist);
   } else {
     g_list_store_append(app->playlistLS, playlist);
   }
+  // Decrement refcount that was incremented upon allocation because appended
+  // playlist will be managed right from listmodel
+  g_object_unref(playlist);
 }
 
 void
@@ -533,21 +582,11 @@ music_app_remove_playlist(MusicApp* app, guint index)
     g_list_model_get_item(G_LIST_MODEL(app->playlistLS), index);
 
   if (playlist == music_app_get_active_playlist(app)) {
-    music_app_dropdown_select(app, index - 1);
+    music_app_set_active_playlist(app, NULL);
+    music_app_set_current_track(app, NULL);
   }
+  g_object_unref(playlist);
   g_list_store_remove(app->playlistLS, index);
-}
-
-void
-music_app_reset_current_track_widget(MusicApp* app)
-{
-  if (audio_system_is_playing()) {
-    audio_system_stop_audio();
-    music_app_switch_playback_icon(app, BUTTON_PLAY);
-  }
-  music_app_set_current_track_widget(app, NULL, G_MAXUINT, TRACK_INACTIVE);
-  gtk_range_set_value(GTK_RANGE(app->audioPositionScale), 0.0f);
-  gtk_label_set_text(app->audioLengthLabel, "00:00:00");
 }
 
 void
@@ -557,19 +596,17 @@ music_app_dropdown_select(MusicApp* app, guint index)
 }
 
 void
-music_app_play_widget(MusicApp* app, TrackWidget* widget)
+music_app_play_track(MusicApp* app)
 {
-  Track* track = track_widget_get_track(widget);
   gtk_range_set_value(GTK_RANGE(app->audioPositionScale), 0.0f);
+  Track* track = app->current;
 
-  audio_system_stop_audio();
   if (audio_system_open_audio(track->path) == -1) {
     return;
   }
 
-  music_app_set_current_track_widget(app, NULL, track->index, TRACK_PLAYING);
-
   audio_system_play_audio();
+  music_app_update_current_track_widget(app, AUDIO_PLAYING);
   music_app_switch_playback_icon(app, BUTTON_PLAY);
 }
 
@@ -608,7 +645,8 @@ char*
 music_app_format_into_time_string(long int milliseconds)
 {
   long int temp = milliseconds / 1000;
-  long int seconds = (milliseconds / 1000.0f - temp) >= 0.5f ? temp + 1 : temp;
+  long int seconds =
+    (milliseconds / 1000.0f) - (float)temp >= 0.5f ? temp + 1 : temp;
   int minutes = 0;
   int hours = 0;
   if (seconds >= 60) {
@@ -657,4 +695,16 @@ GtkScale*
 music_app_get_audio_position_scale(MusicApp* app)
 {
   return app->audioPositionScale;
+}
+
+void
+music_app_update_current_track_widget(MusicApp* app, AudioState state)
+{
+  if (app->current != NULL) {
+    TrackWidget* widget = music_app_get_track_widget(app, app->current->index);
+    if (app->current == track_widget_get_track(widget)) {
+      track_widget_set_icon(
+        music_app_get_track_widget(app, app->current->index), state);
+    }
+  }
 }

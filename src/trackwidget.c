@@ -1,6 +1,6 @@
 #include "trackwidget.h"
-#include "glib-object.h"
-#include "handlers.h"
+#include "callbacks_ui.h"
+#include "enum_types.h"
 #include "track.h"
 #include <gtk/gtk.h>
 
@@ -10,7 +10,6 @@ struct _TrackWidget
   GtkButton* playButton;
 
   int index;
-  TrackWidgetState state;
   Track* track;
 };
 
@@ -20,7 +19,6 @@ void
 track_widget_init(TrackWidget* widget)
 {
   widget->index = 0;
-  widget->state = TRACK_INACTIVE;
   gtk_orientable_set_orientation(GTK_ORIENTABLE(widget),
                                  GTK_ORIENTATION_HORIZONTAL);
   gtk_box_set_spacing(GTK_BOX(widget), 5);
@@ -46,7 +44,7 @@ track_widget_dispose(GObject* object)
     gtk_widget_unparent(GTK_WIDGET(widget->playButton));
     widget->playButton = NULL;
   }
-
+  widget->track = NULL;
   gtk_widget_unparent(GTK_WIDGET(object));
   G_OBJECT_CLASS(track_widget_parent_class)->dispose(object);
 }
@@ -64,38 +62,23 @@ track_widget_class_init(TrackWidgetClass* klass)
   G_OBJECT_CLASS(klass)->finalize = track_widget_finalize;
 }
 
-int
-track_widget_get_state(TrackWidget* widget)
-{
-  return widget->state;
-}
-
-// this doesn't pause playback, it just switches icon for widget and active flag
 void
-track_widget_set_state(TrackWidget* widget, TrackWidgetState state)
+track_widget_set_icon(TrackWidget* widget, AudioState state)
 {
   switch (state) {
-    case TRACK_INACTIVE: {
+    case AUDIO_STOPPED: {
       gtk_button_set_icon_name(widget->playButton, "media-playback-start");
       break;
     }
-    case TRACK_ACTIVE: {
+    case AUDIO_PLAYING: {
+      gtk_button_set_icon_name(widget->playButton, "media-playback-pause");
       break;
     }
-    case TRACK_PLAYING: {
-      if (widget->state != TRACK_PLAYING) {
-        gtk_button_set_icon_name(widget->playButton, "media-playback-pause");
-      }
-      break;
-    }
-    case TRACK_PAUSED: {
-      if (widget->state == TRACK_PLAYING) {
-        gtk_button_set_icon_name(widget->playButton, "media-playback-start");
-      }
+    case AUDIO_PAUSED: {
+      gtk_button_set_icon_name(widget->playButton, "media-playback-start");
       break;
     }
   }
-  widget->state = state;
 }
 
 Track*
@@ -113,7 +96,7 @@ track_widget_set_track(TrackWidget* widget, Track* track)
 TrackWidget*
 track_widget_new(MusicApp* app, Track* track)
 {
-  TrackWidget* widget =  g_object_new(TRACK_WIDGET_TYPE, NULL);
+  TrackWidget* widget = g_object_new(TRACK_WIDGET_TYPE, NULL);
 
   GtkLabel* trackLabel = GTK_LABEL(gtk_label_new(""));
   GString* str = g_string_new("");

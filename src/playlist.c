@@ -19,6 +19,7 @@ struct _Playlist
   PlaylistTypes type;
   guint startLine;
   guint endLine;
+  bool wasEverSelected;
 };
 
 G_DEFINE_TYPE(Playlist, playlist, G_TYPE_OBJECT)
@@ -27,10 +28,14 @@ static void
 playlist_dispose(GObject* object)
 {
   Playlist* playlist = APP_PLAYLIST(object);
+  while (playlist->tracks->len > 0) {
+    Track* track = g_ptr_array_remove_index_fast(playlist->tracks, 0);
+    track_unref(track);
+  }
+  g_free(playlist->name);
+  g_free(playlist->path);
+  g_free(playlist->description);
 
-  playlist_free(playlist);
-
-  gtk_widget_unparent(GTK_WIDGET(object));
   G_OBJECT_CLASS(playlist_parent_class)->dispose(object);
 }
 
@@ -73,6 +78,7 @@ playlist_new(gchar* name, gchar* path, PlaylistTypes type)
   playlist->type = type;
   playlist->startLine = G_MAXUINT;
   playlist->endLine = G_MAXUINT;
+  playlist->wasEverSelected = false;
 
   return playlist;
 }
@@ -81,17 +87,6 @@ static void
 playlist_notify_change(Playlist* playlist)
 {
   g_signal_emit(playlist, playlist_signals[INFO_CHANGED], 0);
-}
-
-void
-playlist_free(Playlist* playlist)
-{
-  while (playlist->tracks->len > 0) {
-    Track* track = g_ptr_array_remove_index_fast(playlist->tracks, 0);
-    track_free(track);
-  }
-  g_free(playlist->name);
-  g_free(playlist->path);
 }
 
 void
@@ -110,7 +105,6 @@ void
 playlist_add(Playlist* playlist, Track* track)
 {
   if (playlist->tracks->len == 0 && playlist->type == PLAYLIST_NEW) {
-
     // The playlist is no longer considered new after adding
     // first track, and another new playlist can be created
     playlist->type = PLAYLIST_NONE;
@@ -270,7 +264,7 @@ parse_playlists(GPtrArray* playlists, gchar* filename)
               playlist_populate(playlist, tracks);
               playlist_set_lines_in_conf(playlist, startLine, lineIndex);
               g_ptr_array_add(playlists, playlist);
-              g_ptr_array_free(tracks, FALSE);
+              g_ptr_array_free(tracks, TRUE);
 
               gchar* playlistDescription =
                 g_utf8_substring(line, startIndex + 1, endIndex);
@@ -333,7 +327,7 @@ parse_playlists(GPtrArray* playlists, gchar* filename)
   // Assuming that EOF reached and there was no end of playlist indicator
   if (playlist != NULL) {
     g_printerr("ERROR: parse_playlists(): EOF reached without playlist end\n");
-    playlist_free(playlist);
+    g_object_unref(playlist);
     if (tracks != NULL) {
       g_ptr_array_free(tracks, TRUE);
     }

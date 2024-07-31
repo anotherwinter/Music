@@ -20,11 +20,7 @@ audio_system_pause_audio();
 void
 audio_system_resume_audio();
 int
-audio_system_is_playing();
-int
-audio_system_is_paused();
-int
-audio_system_is_stopped();
+audio_system_get_state();
 void
 audio_system_set_volume(double value);
 void
@@ -33,11 +29,8 @@ void
 audio_system_set_time_changed_callback(void* time_changed, void* user_data);
 void
 audio_system_set_length_changed_callback(void* length_changed, void* user_data);
-
-// Returns audio position in milliseconds or -1 if audio not loaded
 float
 audio_system_get_audio_position();
-
 void
 audio_system_set_audio_position(float position);
 void

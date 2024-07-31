@@ -1,6 +1,8 @@
 #include "factory.h"
+#include "callbacks_ui.h"
 #include "contextmenu.h"
-#include "handlers.h"
+#include "musicapp.h"
+#include "playlist.h"
 
 // Create "blank" widget for setting data on it then in bind_factory()
 static void
@@ -46,7 +48,8 @@ list_factory_bind(GtkSignalListItemFactory* factory,
 
   GtkGesture* gesture = gtk_gesture_click_new();
   gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(gesture), 3);
-  gtk_widget_add_controller(gtk_widget_get_parent(box), GTK_EVENT_CONTROLLER(gesture));
+  gtk_widget_add_controller(gtk_widget_get_parent(box),
+                            GTK_EVENT_CONTROLLER(gesture));
   g_object_set_data(G_OBJECT(list_item), "gesture", gesture);
 
   // Connect gesture and add it's handler id for further disconnecting
@@ -70,21 +73,17 @@ list_factory_unbind(GtkSignalListItemFactory* self,
                     gpointer user_data)
 {
   GtkWidget* box = gtk_list_item_get_child(list_item);
-  GtkWidget* menu = GTK_WIDGET(context_menu_get_menu(false));
-
-  if (gtk_widget_get_parent(menu) == box) {
-    gtk_widget_unparent(menu);
-  }
 
   GPtrArray* labels = g_object_get_data(G_OBJECT(list_item), "labels");
-  g_ptr_array_free(labels, FALSE);
+  g_ptr_array_free(labels, TRUE);
   g_object_set_data(G_OBJECT(list_item), "labels", NULL);
 
   GPtrArray* arr = g_object_get_data(G_OBJECT(list_item), "handlers");
   GtkGesture* gesture = g_object_get_data(G_OBJECT(list_item), "gesture");
   g_signal_handler_disconnect(gesture,
                               GPOINTER_TO_INT(g_ptr_array_index(arr, 0)));
-  gtk_widget_remove_controller(gtk_widget_get_parent(box), GTK_EVENT_CONTROLLER(gesture));
+  gtk_widget_remove_controller(gtk_widget_get_parent(box),
+                               GTK_EVENT_CONTROLLER(gesture));
 
   Playlist* playlist = APP_PLAYLIST(gtk_list_item_get_item(list_item));
   g_signal_handler_disconnect(playlist,
@@ -92,7 +91,7 @@ list_factory_unbind(GtkSignalListItemFactory* self,
 
   g_ptr_array_free(arr, TRUE);
 
-    gtk_widget_remove_css_class(gtk_widget_get_parent(box), "playlistPopover");
+  gtk_widget_remove_css_class(gtk_widget_get_parent(box), "playlistPopover");
 
   g_object_set_data(G_OBJECT(list_item), "handlers", NULL);
   g_object_set_data(G_OBJECT(list_item), "gesture", NULL);
@@ -115,7 +114,7 @@ music_app_setup_list_factory(MusicApp* app)
   g_signal_connect(
     list_factory, "unbind", G_CALLBACK(list_factory_unbind), app);
   g_signal_connect(
-    list_factory, "teardown", G_CALLBACK(list_factory_teardown), NULL);
+    list_factory, "teardown", G_CALLBACK(list_factory_teardown), app);
 
   return list_factory;
 }
