@@ -1,5 +1,6 @@
 #pragma once
 #include "enum_types.h"
+#include "glib.h"
 #include "playlist.h"
 #include <gtk/gtk.h>
 
@@ -7,6 +8,7 @@
 G_DECLARE_FINAL_TYPE(MusicApp, music_app, MUSIC, APP, GtkApplication)
 
 typedef struct _TrackWidget TrackWidget;
+typedef void (*SelectionCallback)(GPtrArray* selected, int addedCount);
 
 MusicApp*
 music_app_new();
@@ -20,20 +22,21 @@ GtkWindow*
 music_app_get_main_window(MusicApp* app);
 void
 music_app_add_track_widget(MusicApp* app, TrackWidget* widget);
+
+// Removes track widget. Pass with batch TRUE to avoid saving playlist after every deletion
 void
-music_app_remove_track_widget(MusicApp* app, TrackWidget* widget);
+music_app_remove_track_widget(MusicApp* app, TrackWidget* widget, bool batch);
+
+// Removes track widgets specified in array and then saves playlist
+void
+music_app_remove_track_widgets_batch(MusicApp* app, GPtrArray* widgets);
+
 void
 music_app_switch_playback_icon(MusicApp* app, ButtonTypes type);
 Track*
 music_app_get_current_track(MusicApp* app);
-
-// Sets new current track widget, index is optional and can be G_MAXUINT to set
-// by widget, firstly it tries to set by index, then by widget pointer. Current
-// track widget can be "cleared" by setting widget to NULL and index to
-// G_MAXUINT: there is music_app_reset_current_track_widget() for that task
 void
 music_app_set_current_track(MusicApp* app, Track* track);
-
 TrackWidget*
 music_app_get_track_widget(MusicApp* app, guint index);
 PlaybackOptions
@@ -80,3 +83,22 @@ GtkScale*
 music_app_get_audio_position_scale(MusicApp* app);
 void
 music_app_update_current_track_widget(MusicApp* app, AudioState state);
+GPtrArray*
+music_app_get_selected_track_widgets(MusicApp* app);
+void
+music_app_set_selection_cb(MusicApp* app, SelectionCallback cb);
+int
+music_app_invoke_selection_cb(MusicApp* app, int count);
+
+// Get all track widgets in [start;end) range. Function won't add any pointers
+// if boundaries are invalid. Returns amount of widgets added
+int
+music_app_retrieve_track_widgets(MusicApp* app,
+                                 int start,
+                                 int end,
+                                 GPtrArray* arr);
+
+char
+music_app_get_flags(MusicApp* app);
+void
+music_app_set_flag(MusicApp* app, AppFlags flag, bool value);

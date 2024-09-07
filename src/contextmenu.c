@@ -1,6 +1,8 @@
 #include "contextmenu.h"
 #include "dialog.h"
+#include "glib.h"
 #include "gtk/gtk.h"
+#include "musicapp.h"
 #include "playlist.h"
 #include "timsort.h"
 #include "trackwidget.h"
@@ -21,8 +23,14 @@ on_remove_track_action(GSimpleAction* action,
                        GVariant* parameter,
                        gpointer user_data)
 {
-  music_app_remove_track_widget(context_menu->app,
-                                APP_TRACK_WIDGET(context_menu->data));
+  if (music_app_get_flags(context_menu->app) & (1 << FLAG_MULTISELECT)) {
+    GPtrArray* selected =
+      music_app_get_selected_track_widgets(context_menu->app);
+    music_app_remove_track_widgets_batch(context_menu->app, selected);
+  } else {
+    music_app_remove_track_widget(context_menu->app,
+                                  APP_TRACK_WIDGET(context_menu->data), FALSE);
+  }
 }
 
 static void

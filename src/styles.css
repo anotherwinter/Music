@@ -70,12 +70,21 @@ dropdown popover contents box scrolledwindow row {
 }
 
 .trackWidget {
+    color: gray;
+    background: #23242A;
+}
+
+.trackWidget:hover {
+    color: #7a59a7;
+}
+
+.trackWidget-selected {
     color: white;
     background: #23242A;
 }
 
 .boxSeparator {
     min-height: 10px;
-    background: rgb(24,26,31);
+    background: #181A1F;
     background: linear-gradient(0deg, rgba(24,26,31,1) 0%, rgba(40,42,48,1) 70%);
 }

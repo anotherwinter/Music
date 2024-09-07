@@ -5,6 +5,7 @@
 #include "contextmenu.h"
 #include "enum_types.h"
 #include "factory.h"
+#include "glib.h"
 #include "playlist.h"
 #include "resources.h"
 #include "track.h"
@@ -49,9 +50,12 @@ struct _MusicApp
 
   GtkListItemFactory* factory;
   GPtrArray* trackWidgets;
+  GPtrArray* selected;
   Playlist* active;
   Track* current;
   PlaybackOptions options;
+  SelectionCallback selectionCb;
+  char flags;
 };
 
 G_DEFINE_TYPE(MusicApp, music_app, GTK_TYPE_APPLICATION)
@@ -306,6 +310,8 @@ music_app_activate(GApplication* app)
   this->active = NULL;
   this->options = PLAYBACK_NONE;
   this->trackWidgets = g_ptr_array_new();
+  this->selected = g_ptr_array_new();
+  this->flags = 0;
 
   gtk_drop_down_set_model(this->playlistDD, G_LIST_MODEL(this->playlistLS));
   gtk_range_set_range(GTK_RANGE(this->volumeScale), 0.0f, 1.0f);
@@ -376,7 +382,7 @@ music_app_add_track_widget(MusicApp* app, TrackWidget* widget)
 }
 
 void
-music_app_remove_track_widget(MusicApp* app, TrackWidget* widget)
+music_app_remove_track_widget(MusicApp* app, TrackWidget* widget, bool batch)
 {
   int index = track_widget_get_index(widget);
 
@@ -391,12 +397,26 @@ music_app_remove_track_widget(MusicApp* app, TrackWidget* widget)
     track_unref(track);
   }
 
-  int offset = playlist_save(music_app_get_selected_playlist(app));
-  if (offset) {
-    music_app_shift_playlists_lines(app, index, offset);
+  if (!batch) {
+    int offset = playlist_save(music_app_get_selected_playlist(app));
+    guint position = gtk_drop_down_get_selected(app->playlistDD);
+    music_app_shift_playlists_lines(app, position, offset);
   }
 
   gtk_box_remove(app->tracksBox, GTK_WIDGET(widget));
+}
+
+void
+music_app_remove_track_widgets_batch(MusicApp* app, GPtrArray* widgets)
+{
+  for (int i = widgets->len - 1; i < widgets->len; i--) {
+    music_app_remove_track_widget(
+      app, g_ptr_array_remove_index_fast(widgets, i), TRUE);
+  }
+
+  int offset = playlist_save(music_app_get_selected_playlist(app));
+  guint position = gtk_drop_down_get_selected(app->playlistDD);
+  music_app_shift_playlists_lines(app, position, offset);
 }
 
 void
@@ -703,8 +723,83 @@ music_app_update_current_track_widget(MusicApp* app, AudioState state)
   if (app->current != NULL) {
     TrackWidget* widget = music_app_get_track_widget(app, app->current->index);
     if (app->current == track_widget_get_track(widget)) {
-      track_widget_set_icon(
-        music_app_get_track_widget(app, app->current->index), state);
+      widget = music_app_get_track_widget(app, app->current->index);
+      track_widget_set_icon(widget, state);
     }
+  }
+}
+
+GPtrArray*
+music_app_get_selected_track_widgets(MusicApp* app)
+{
+  return app->selected;
+}
+
+void
+music_app_set_selection_cb(MusicApp* app, SelectionCallback cb)
+{
+  app->selectionCb = cb;
+}
+
+int
+music_app_invoke_selection_cb(MusicApp* app, int count)
+{
+  if (app->selectionCb) {
+    app->selectionCb(app->selected, count);
+    return 1;
+  }
+  return 0;
+}
+
+int
+music_app_retrieve_track_widgets(MusicApp* app,
+                                 int start,
+                                 int end,
+                                 GPtrArray* arr)
+{
+  int count = end - start;
+  int direction = count < 0 ? -1 : 1;
+  count *= direction;
+  int i = count;
+  if (count & 1) {
+    g_ptr_array_add(
+      arr, (const gpointer)g_ptr_array_index(app->trackWidgets, start));
+    start += direction;
+    i--;
+  }
+
+  end -= direction;
+
+  while (i > 0) {
+    g_ptr_array_add(
+      arr, (const gpointer)g_ptr_array_index(app->trackWidgets, start));
+    g_ptr_array_add(arr,
+                    (const gpointer)g_ptr_array_index(app->trackWidgets, end));
+    start += direction;
+    end -= direction;
+    i -= 2;
+  }
+
+  return count;
+}
+
+char
+music_app_get_flags(MusicApp* app)
+{
+  return app->flags;
+}
+
+void
+music_app_set_flag(MusicApp* app, AppFlags flag, bool value)
+{
+  if (flag == FLAG_CLEAR) {
+    app->flags = 0;
+    return;
+  }
+  char mask = 1 << flag;
+  if (value) {
+    app->flags |= mask;
+  } else {
+    app->flags &= ~mask;
   }
 }

@@ -68,10 +68,12 @@ track_widget_set_icon(TrackWidget* widget, AudioState state)
   switch (state) {
     case AUDIO_STOPPED: {
       gtk_button_set_icon_name(widget->playButton, "media-playback-start");
+      gtk_widget_remove_css_class(GTK_WIDGET(widget), "trackWidget-selected");
       break;
     }
     case AUDIO_PLAYING: {
       gtk_button_set_icon_name(widget->playButton, "media-playback-pause");
+      gtk_widget_add_css_class(GTK_WIDGET(widget), "trackWidget-selected");
       break;
     }
     case AUDIO_PAUSED: {
@@ -127,8 +129,8 @@ track_widget_new(MusicApp* app, Track* track)
 
   GtkGesture* gesture = gtk_gesture_click_new();
 
-  gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(gesture), 3);
-  g_signal_connect(gesture, "pressed", G_CALLBACK(trackWidget_clicked), widget);
+  gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(gesture), 0);
+  g_signal_connect(gesture, "pressed", G_CALLBACK(trackWidget_clicked), app);
 
   // no need to store gesture pointer to free it manually,
   // gesture gets destroyed automatically after its widget got

@@ -4,6 +4,9 @@
 #include "dialog.h"
 #include "enum_types.h"
 #include "filelister.h"
+#include "gdk/gdk.h"
+#include "glib.h"
+#include "gtk/gtk.h"
 #include "musicapp.h"
 #include "playlist.h"
 #include "trackwidget.h"
@@ -82,14 +85,69 @@ trackWidget_clicked(GtkGestureClick* self,
                     gdouble y,
                     gpointer user_data)
 {
-  GtkWidget* menu = GTK_WIDGET(context_menu_get_menu(true));
-  if (gtk_widget_get_parent(menu) != GTK_WIDGET(user_data)) {
-    gtk_widget_unparent(menu);
-    gtk_widget_set_parent(GTK_WIDGET(menu), GTK_WIDGET(user_data));
-    context_menu_set_data(user_data);
+  GtkWidget* widget =
+    gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(self));
+
+  switch (gtk_gesture_single_get_current_button(GTK_GESTURE_SINGLE(self))) {
+    case GDK_BUTTON_PRIMARY: {
+      MusicApp* app = MUSIC_APP(user_data);
+      GPtrArray* selected = music_app_get_selected_track_widgets(app);
+      GdkEvent* event = gtk_gesture_get_last_event(GTK_GESTURE(self), NULL);
+      int count = 0;
+      bool keyPress = false;
+      if (event != NULL) {
+        GdkModifierType state = gdk_event_get_modifier_state(event);
+        if (state & GDK_SHIFT_MASK) {
+          if (selected->len > 0 && g_ptr_array_index(selected, 0) != widget) {
+            keyPress = true;
+            int start = track_widget_get_index(
+              APP_TRACK_WIDGET(g_ptr_array_index(selected, selected->len - 1)));
+            int end = track_widget_get_index(APP_TRACK_WIDGET(widget));
+            if (start < end) {
+              start++;
+            }
+            else {
+              start--;
+            }
+            count = music_app_retrieve_track_widgets(app, start, end, selected);
+          }
+        } else if (state & GDK_CONTROL_MASK) {
+          keyPress = true;
+        }
+      }
+      if (!keyPress) {
+        for (int i = selected->len - 1; i >= 0; i--) {
+          gtk_widget_remove_css_class(
+            g_ptr_array_remove_index_fast(selected, i), "trackWidget-selected");
+        }
+      }
+      music_app_set_flag(app, FLAG_MULTISELECT, keyPress);
+      g_ptr_array_add(selected, (const gpointer)widget);
+      count++;
+
+      // default selection handler
+      if (!music_app_invoke_selection_cb(app, count)) {
+        for (int i = selected->len - count; i < selected->len; i++) {
+          gtk_widget_add_css_class(g_ptr_array_index(selected, i),
+                                   "trackWidget-selected");
+        }
+      }
+      break;
+    }
+
+    case GDK_BUTTON_SECONDARY: {
+      GtkWidget* menu = GTK_WIDGET(context_menu_get_menu(true));
+      if (gtk_widget_get_parent(menu) != widget) {
+        gtk_widget_unparent(menu);
+        gtk_widget_set_parent(GTK_WIDGET(menu), widget);
+        context_menu_set_data(widget);
+      }
+      gtk_popover_set_pointing_to(GTK_POPOVER(menu),
+                                  &(GdkRectangle){ x, y, 1, 1 });
+      gtk_popover_popup(GTK_POPOVER(menu));
+      break;
+    }
   }
-  gtk_popover_set_pointing_to(GTK_POPOVER(menu), &(GdkRectangle){ x, y, 1, 1 });
-  gtk_popover_popup(GTK_POPOVER(menu));
 }
 
 void
@@ -118,6 +176,7 @@ selection_changed(GtkDropDown* dropdown, GParamSpec* pspec, gpointer user_data)
   MusicApp* app = user_data;
   Track* track = NULL;
   music_app_clear_track_widgets(app);
+  g_ptr_array_set_size(music_app_get_selected_track_widgets(app), 0);
   guint position = gtk_drop_down_get_selected(dropdown);
   if (position != GTK_INVALID_LIST_POSITION) {
     Playlist* playlist = music_app_get_playlist(app, position);
