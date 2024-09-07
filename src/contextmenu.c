@@ -28,8 +28,8 @@ on_remove_track_action(GSimpleAction* action,
       music_app_get_selected_track_widgets(context_menu->app);
     music_app_remove_track_widgets_batch(context_menu->app, selected);
   } else {
-    music_app_remove_track_widget(context_menu->app,
-                                  APP_TRACK_WIDGET(context_menu->data), FALSE);
+    music_app_remove_track_widget(
+      context_menu->app, APP_TRACK_WIDGET(context_menu->data), FALSE);
   }
 }
 
@@ -75,6 +75,8 @@ on_duplicate_playlist_action(GSimpleAction* action,
 {
   music_app_duplicate_playlist(context_menu->app,
                                gtk_list_item_get_item(context_menu->data));
+  // temporary fix
+  gtk_widget_unparent(GTK_WIDGET(context_menu->playlistMenu));
 }
 
 static void

@@ -105,8 +105,7 @@ trackWidget_clicked(GtkGestureClick* self,
             int end = track_widget_get_index(APP_TRACK_WIDGET(widget));
             if (start < end) {
               start++;
-            }
-            else {
+            } else {
               start--;
             }
             count = music_app_retrieve_track_widgets(app, start, end, selected);
@@ -186,7 +185,8 @@ selection_changed(GtkDropDown* dropdown, GParamSpec* pspec, gpointer user_data)
       music_app_add_track_widget(app, track_widget_new(app, track));
     }
     track = music_app_get_current_track(app);
-    if (track != NULL && track == g_ptr_array_index(tracks, track->index)) {
+    if (track != NULL && track == g_ptr_array_index(tracks, track->index) &&
+        music_app_get_active_playlist(app) == playlist) {
       music_app_update_current_track_widget(app, audio_system_get_state());
     }
   }
@@ -374,25 +374,24 @@ void
 playtrackButton_clicked(GtkButton* self, gpointer user_data)
 {
   MusicApp* app = MUSIC_APP(user_data);
-  Track* current = music_app_get_current_track(app);
   Track* new = track_widget_get_track(
     APP_TRACK_WIDGET(gtk_widget_get_parent(GTK_WIDGET(self))));
-  music_app_set_active_playlist(app, music_app_get_selected_playlist(app));
 
-  if (audio_system_get_state() == AUDIO_PLAYING) {
-
-    // Assuming that if new widget is active, then it's the same widget as
-    // previous therefore it can't be NULL
-    if (current == new) {
+  if (audio_system_get_state() != AUDIO_STOPPED) {
+    if (music_app_get_selected_playlist(app) ==
+        music_app_get_active_playlist(app)) {
       if (audio_system_get_state() == AUDIO_PAUSED) {
+        music_app_update_current_track_widget(app, AUDIO_PLAYING);
         audio_system_resume_audio();
       } else {
+        music_app_update_current_track_widget(app, AUDIO_PAUSED);
         audio_system_pause_audio();
       }
       music_app_switch_playback_icon(app, BUTTON_PLAY);
       return;
     }
   }
+  music_app_set_active_playlist(app, music_app_get_selected_playlist(app));
   music_app_set_current_track(app, new);
   music_app_play_track(app);
 }

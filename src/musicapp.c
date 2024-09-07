@@ -625,7 +625,9 @@ music_app_play_track(MusicApp* app)
     return;
   }
 
-  audio_system_play_audio();
+  if (!audio_system_play_audio()) {
+    g_printerr("ERROR: music_app_play_track(): failed to play track\n");
+  }
   music_app_update_current_track_widget(app, AUDIO_PLAYING);
   music_app_switch_playback_icon(app, BUTTON_PLAY);
 }

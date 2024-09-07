@@ -121,7 +121,7 @@ track_widget_new(MusicApp* app, Track* track)
   g_string_free(str, true);
 
   widget->track = track;
-  // widget->index = track->index;
+
   g_signal_connect(widget->playButton,
                    "clicked",
                    G_CALLBACK(playtrackButton_clicked),

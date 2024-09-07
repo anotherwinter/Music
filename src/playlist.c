@@ -1,4 +1,5 @@
 #include "playlist.h"
+#include "enum_types.h"
 #include "filelister.h"
 
 enum
@@ -494,7 +495,8 @@ Playlist*
 playlist_duplicate(Playlist* playlist)
 {
   Playlist* copy = g_object_new(PLAYLIST_TYPE, NULL);
-  copy->path = g_strdup(playlist->path);
+  copy->path = playlist->type == PLAYLIST_FOLDER ? g_strdup("playlists")
+                                                 : g_strdup(playlist->path);
   copy->startLine = G_MAXUINT;
   copy->endLine = G_MAXUINT;
   copy->name = g_strconcat(g_strdup(playlist->name), " (copy)", NULL);

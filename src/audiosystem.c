@@ -66,14 +66,16 @@ audio_system_open_audio(const char* path)
   return 0;
 }
 
-void
+int
 audio_system_play_audio()
 {
   if (libvlc_media_player_play(instance->player) == -1) {
     printf("ERROR: audio_system_play_audio(): Failed to play music\n");
+    return 0;
   } else {
     instance->state = AUDIO_PLAYING;
   }
+  return 1;
 }
 
 void

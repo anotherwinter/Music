@@ -47,7 +47,7 @@ update_ui_from_music_finished(gpointer user_data)
 void
 music_finished(const libvlc_event_t* event, void* user_data)
 {
-  update_ui_from_music_finished(user_data);
+  g_idle_add(update_ui_from_music_finished, user_data);
 }
 
 static gboolean

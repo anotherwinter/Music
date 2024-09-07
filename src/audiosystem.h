@@ -11,7 +11,7 @@ AudioSystem*
 audio_system_get_instance();
 int
 audio_system_open_audio(const char* path);
-void
+int
 audio_system_play_audio();
 void
 audio_system_stop_audio();
