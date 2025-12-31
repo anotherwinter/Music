@@ -1,14 +1,12 @@
 #include "callbacks_ui.h"
-#include "audiosystem.h"
+#include "../audio/audiosystem.h"
+#include "../filelister.h"
+#include "../musicapp.h"
 #include "contextmenu.h"
 #include "dialog.h"
-#include "enum_types.h"
-#include "filelister.h"
 #include "gdk/gdk.h"
 #include "glib.h"
 #include "gtk/gtk.h"
-#include "musicapp.h"
-#include "playlist.h"
 #include "trackwidget.h"
 
 void
@@ -97,39 +95,44 @@ trackWidget_clicked(GtkGestureClick* self,
       bool keyPress = false;
       if (event != NULL) {
         GdkModifierType state = gdk_event_get_modifier_state(event);
+        // if SHIFT key was pressed
         if (state & GDK_SHIFT_MASK) {
+          // if selected something before (len > 0) and first item in selection
+          // is not current widget
           if (selected->len > 0 && g_ptr_array_index(selected, 0) != widget) {
             keyPress = true;
             int start = track_widget_get_index(
               APP_TRACK_WIDGET(g_ptr_array_index(selected, selected->len - 1)));
             int end = track_widget_get_index(APP_TRACK_WIDGET(widget));
-            if (start < end) {
+            if (start < end)
               start++;
-            } else {
+            else
               start--;
-            }
+
             count = music_app_retrieve_track_widgets(app, start, end, selected);
           }
-        } else if (state & GDK_CONTROL_MASK) {
+        }
+        // if CONTROL key was pressed
+        else if (state & GDK_CONTROL_MASK) {
           keyPress = true;
         }
       }
+
       if (!keyPress) {
-        for (int i = selected->len - 1; i >= 0; i--) {
+        for (int i = selected->len - 1; i >= 0; i--)
           gtk_widget_remove_css_class(
             g_ptr_array_remove_index_fast(selected, i), "trackWidget-selected");
-        }
       }
-      music_app_set_flag(app, FLAG_MULTISELECT, keyPress);
+
+      music_app_set_ui_flag(app, FLAG_MULTISELECT, keyPress);
       g_ptr_array_add(selected, (const gpointer)widget);
       count++;
 
       // default selection handler
       if (!music_app_invoke_selection_cb(app, count)) {
-        for (int i = selected->len - count; i < selected->len; i++) {
+        for (int i = selected->len - count; i < selected->len; i++)
           gtk_widget_add_css_class(g_ptr_array_index(selected, i),
                                    "trackWidget-selected");
-        }
       }
       break;
     }
@@ -157,7 +160,7 @@ createPlaylist_clicked(GtkButton* self, gpointer user_data)
   Playlist* current = NULL;
   guint lastIndex = music_app_get_playlists_count(app) - 1;
   current = music_app_get_playlist(app, lastIndex);
-  if (playlist_is_new(current)) {
+  if (current && playlist_is_new(current)) {
     music_app_dropdown_select(app, lastIndex);
     return;
   }
@@ -185,8 +188,7 @@ selection_changed(GtkDropDown* dropdown, GParamSpec* pspec, gpointer user_data)
       music_app_add_track_widget(app, track_widget_new(app, track));
     }
     track = music_app_get_current_track(app);
-    if (track != NULL && track == g_ptr_array_index(tracks, track->index) &&
-        music_app_get_active_playlist(app) == playlist) {
+    if (track != NULL && music_app_get_active_playlist(app) == playlist) {
       music_app_update_current_track_widget(app, audio_system_get_state());
     }
   }
@@ -374,21 +376,31 @@ void
 playtrackButton_clicked(GtkButton* self, gpointer user_data)
 {
   MusicApp* app = MUSIC_APP(user_data);
-  Track* new = track_widget_get_track(
-    APP_TRACK_WIDGET(gtk_widget_get_parent(GTK_WIDGET(self))));
+  TrackWidget* this = APP_TRACK_WIDGET(gtk_widget_get_parent(GTK_WIDGET(self)));
+  Track* new = track_widget_get_track(this);
+  int audioState = audio_system_get_state();
+  bool switchPlayback =
+    audioState && (this == music_app_get_track_widget(
+                             app, music_app_get_current_track(app)->index));
 
-  if (audio_system_get_state() != AUDIO_STOPPED) {
-    if (music_app_get_selected_playlist(app) ==
-        music_app_get_active_playlist(app)) {
-      if (audio_system_get_state() == AUDIO_PAUSED) {
-        music_app_update_current_track_widget(app, AUDIO_PLAYING);
-        audio_system_resume_audio();
-      } else {
+  switch (audioState) {
+    case AUDIO_PLAYING: {
+      if (switchPlayback) {
         music_app_update_current_track_widget(app, AUDIO_PAUSED);
         audio_system_pause_audio();
+        return;
       }
+      break;
+    }
+    case AUDIO_STOPPED:
+    case AUDIO_PAUSED: {
       music_app_switch_playback_icon(app, BUTTON_PLAY);
-      return;
+      if (switchPlayback) {
+        music_app_update_current_track_widget(app, AUDIO_PLAYING);
+        audio_system_resume_audio();
+        return;
+      }
+      break;
     }
   }
   music_app_set_active_playlist(app, music_app_get_selected_playlist(app));

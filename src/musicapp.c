@@ -1,15 +1,13 @@
 #include "musicapp.h"
-#include "audiosystem.h"
-#include "callbacks_playback.h"
-#include "callbacks_ui.h"
-#include "contextmenu.h"
-#include "enum_types.h"
-#include "factory.h"
+#include "glib-object.h"
 #include "glib.h"
-#include "playlist.h"
-#include "resources.h"
-#include "track.h"
-#include "trackwidget.h"
+#include "playlist/track.h"
+#include "resources/resources.h"
+#include "ui/callbacks_playback.h"
+#include "ui/callbacks_ui.h"
+#include "ui/contextmenu.h"
+#include "ui/factory.h"
+#include "ui/trackwidget.h"
 
 struct _MusicApp
 {
@@ -186,6 +184,16 @@ set_icons(MusicApp* app)
 }
 
 static void
+set_styles(MusicApp* app)
+{
+  gtk_widget_add_css_class(GTK_WIDGET(app->appBox), "text");
+  gtk_widget_add_css_class(GTK_WIDGET(app->trackLabel), "text");
+  gtk_widget_add_css_class(GTK_WIDGET(app->playButton), "playButton");
+  gtk_widget_add_css_class(GTK_WIDGET(app->audioLengthLabel), "text-small");
+  gtk_widget_add_css_class(GTK_WIDGET(app->audioPositionLabel), "text-small");
+}
+
+static void
 build_ui(MusicApp* app)
 {
   GtkCssProvider* provider = gtk_css_provider_new();
@@ -194,6 +202,7 @@ build_ui(MusicApp* app)
   gtk_style_context_add_provider_for_display(
     display, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
 
+  g_object_unref(provider);
   GtkBuilder* builder = gtk_builder_new_from_resource("/org/aw/Music/main.ui");
 
   app->win = GTK_WINDOW(gtk_builder_get_object(builder, "win"));
@@ -241,6 +250,7 @@ build_ui(MusicApp* app)
   gtk_popover_set_cascade_popdown(app->dropDownPopover, TRUE);
 
   set_icons(app);
+  set_styles(app);
 }
 
 static void
@@ -580,7 +590,7 @@ music_app_add_playlist(MusicApp* app, Playlist* playlist)
         music_app_clear_track_widgets(app);
       }
       GObject* new = G_OBJECT(playlist);
-      g_list_store_splice(app->playlistLS, 0, 1, (gpointer) & new, 1);
+      g_list_store_splice(app->playlistLS, 0, 1, (gpointer)&new, 1);
     } else {
       g_list_store_insert(app->playlistLS, 0, playlist);
     }
@@ -621,13 +631,12 @@ music_app_play_track(MusicApp* app)
   gtk_range_set_value(GTK_RANGE(app->audioPositionScale), 0.0f);
   Track* track = app->current;
 
-  if (audio_system_open_audio(track->path) == -1) {
+  if (audio_system_open_audio(track->path) == -1)
     return;
-  }
 
-  if (!audio_system_play_audio()) {
+  if (!audio_system_play_audio())
     g_printerr("ERROR: music_app_play_track(): failed to play track\n");
-  }
+
   music_app_update_current_track_widget(app, AUDIO_PLAYING);
   music_app_switch_playback_icon(app, BUTTON_PLAY);
 }
@@ -786,22 +795,21 @@ music_app_retrieve_track_widgets(MusicApp* app,
 }
 
 char
-music_app_get_flags(MusicApp* app)
+music_app_get_ui_flags(MusicApp* app)
 {
   return app->flags;
 }
 
 void
-music_app_set_flag(MusicApp* app, AppFlags flag, bool value)
+music_app_set_ui_flag(MusicApp* app, UIFlags flag, bool value)
 {
   if (flag == FLAG_CLEAR) {
     app->flags = 0;
     return;
   }
   char mask = 1 << flag;
-  if (value) {
+  if (value)
     app->flags |= mask;
-  } else {
+  else
     app->flags &= ~mask;
-  }
 }

@@ -1,7 +1,6 @@
 #include "trackwidget.h"
+#include "../playlist/track.h"
 #include "callbacks_ui.h"
-#include "enum_types.h"
-#include "track.h"
 #include <gtk/gtk.h>
 
 struct _TrackWidget
@@ -25,9 +24,8 @@ track_widget_init(TrackWidget* widget)
   widget->playButton =
     GTK_BUTTON(gtk_button_new_from_icon_name("media-playback-start"));
   gtk_box_append(GTK_BOX(widget), GTK_WIDGET(widget->playButton));
-  gtk_widget_set_margin_start(GTK_WIDGET(widget->playButton), 5);
-  gtk_widget_set_margin_end(GTK_WIDGET(widget->playButton), 5);
   gtk_widget_add_css_class(GTK_WIDGET(widget), "trackWidget");
+  gtk_widget_add_css_class(GTK_WIDGET(widget->playButton), "playButton");
 }
 
 static void
@@ -107,17 +105,13 @@ track_widget_new(MusicApp* app, Track* track)
     g_string_append(str, "\n");
     g_string_append(str, track->artist);
   }
-  gtk_label_set_text(trackLabel, str->str);
-  gtk_widget_set_margin_top(GTK_WIDGET(trackLabel), 3);
-  gtk_widget_set_margin_bottom(GTK_WIDGET(trackLabel), 3);
 
-  // margin is playButton width + its start and end margins, to keep label in
-  // middle
-  gtk_widget_set_margin_end(GTK_WIDGET(trackLabel), 34);
+  gtk_label_set_text(trackLabel, str->str);
+  gtk_widget_add_css_class(GTK_WIDGET(trackLabel), "trackLabel");
   gtk_label_set_justify(trackLabel, GTK_JUSTIFY_CENTER);
   gtk_widget_set_hexpand(GTK_WIDGET(trackLabel), TRUE);
   gtk_box_insert_child_after(
-    GTK_BOX(widget), GTK_WIDGET(trackLabel), GTK_WIDGET(widget->playButton));
+    GTK_BOX(widget), GTK_WIDGET(trackLabel), NULL);
   g_string_free(str, true);
 
   widget->track = track;

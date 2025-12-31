@@ -1,7 +1,6 @@
 #include "callbacks_playback.h"
-#include "audiosystem.h"
-#include "enum_types.h"
-#include "musicapp.h"
+#include "../audio/audiosystem.h"
+#include "../musicapp.h"
 
 static gboolean
 update_ui_from_music_finished(gpointer user_data)

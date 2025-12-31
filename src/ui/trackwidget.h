@@ -1,5 +1,5 @@
 #pragma once
-#include "musicapp.h"
+#include "../musicapp.h"
 
 #define TRACK_WIDGET_TYPE (track_widget_get_type())
 G_DECLARE_FINAL_TYPE(TrackWidget, track_widget, APP, TRACK_WIDGET, GtkBox);

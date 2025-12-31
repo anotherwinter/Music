@@ -1,6 +1,5 @@
 #include "audiosystem.h"
-#include "enum_types.h"
-#include "filelister.h"
+#include "../filelister.h"
 #include <vlc/libvlc_events.h>
 
 struct AudioSystem
@@ -17,7 +16,6 @@ static AudioSystem* instance;
 int
 audio_system_init()
 {
-
   instance = malloc(sizeof(AudioSystem));
   if (instance == NULL) {
     printf("ERROR: audio_system_init(): Failed to allocate memory for "

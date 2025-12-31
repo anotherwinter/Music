@@ -1,7 +1,8 @@
 #pragma once
-#include "enum_types.h"
+#include "audio/audiosystem.h"
 #include "glib.h"
-#include "playlist.h"
+#include "playlist/playlist.h"
+#include "ui/ui_types.h"
 #include <gtk/gtk.h>
 
 #define MUSIC_APP_TYPE (music_app_get_type())
@@ -44,7 +45,6 @@ music_app_get_options(MusicApp* app);
 void
 music_app_set_options(MusicApp* app, PlaybackOptions options);
 
-// Only to use with playlist_free(), otherwise expect memleaks
 void
 music_app_clear_track_widgets(MusicApp* app);
 
@@ -99,6 +99,6 @@ music_app_retrieve_track_widgets(MusicApp* app,
                                  GPtrArray* arr);
 
 char
-music_app_get_flags(MusicApp* app);
+music_app_get_ui_flags(MusicApp* app);
 void
-music_app_set_flag(MusicApp* app, AppFlags flag, bool value);
+music_app_set_ui_flag(MusicApp* app, UIFlags flag, bool value);

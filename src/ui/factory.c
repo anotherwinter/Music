@@ -1,7 +1,7 @@
 #include "factory.h"
+#include "../musicapp.h"
+#include "../playlist/playlist.h"
 #include "callbacks_ui.h"
-#include "musicapp.h"
-#include "playlist.h"
 
 // Create "blank" widget for setting data on it then in bind_factory()
 static void
@@ -19,8 +19,8 @@ list_factory_setup(GtkSignalListItemFactory* factory,
   gtk_box_append(GTK_BOX(box), nameLabel);
   gtk_box_append(GTK_BOX(box), descriptionLabel);
   gtk_list_item_set_child(list_item, box);
-  gtk_widget_add_css_class(nameLabel, "nameText");
-  gtk_widget_add_css_class(descriptionLabel, "descriptionText");
+  gtk_widget_add_css_class(nameLabel, "text");
+  gtk_widget_add_css_class(descriptionLabel, "text-hint");
 }
 
 // Bind data to widget after creating it

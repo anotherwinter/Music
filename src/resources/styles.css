@@ -1,0 +1,143 @@
+:root {
+    --btn-color-primary: #e7dcf1;
+    --btn-color-primary-hover: #e7dcf1;
+    --text-color-primary: white;
+    --text-color-primary-hover: #7a59a7;
+    --text-color-hint: gray;
+    --bg-color-primary: #181a1f;
+    --slider-scale-color: black;
+    --slider-scale-highlight-color: #e7dcf1;
+    --bg-trackwidget-color: #23242a;
+}
+
+.btn-primary,
+button {
+    border: 0px;
+    color: var(--btn-color-primary);
+    background: transparent;
+}
+
+.btn-primary:hover,
+button:hover {
+    color: var(--btn-color-primary-hover);
+}
+
+.playButton {
+    padding: 2px;
+}
+
+.bg-primary {
+    background-color: var(--bg-color-primary);
+}
+
+.text {
+    font-size: 14px;
+    color: var(--text-color-primary);
+}
+
+.text-hint {
+    font-size: 14px;
+    color: var(--text-color-hint);
+}
+
+.text-small {
+    font-size: 12px;
+}
+
+.text-normal {
+    font-size: 14px;
+}
+
+.text-big {
+    font-size: 18px;
+}
+
+.textField {
+    color: var(--text-color-primary);
+    background-color: var(--bg-color-primary);
+}
+
+scale trough {
+    border-radius: 10px;
+    border-color: var(--slider-scale-color);
+    background-color: var(--slider-scale-color);
+}
+
+scale highlight {
+    border: 0;
+    background-color: var(--slider-scale-highlight-color);
+}
+
+scale slider {
+    background: var(--btn-color-primary);
+}
+
+popover arrow {
+    background-color: var(--bg-color-primary);
+}
+
+popover contents {
+    color: var(--text-color-primary);
+    background-color: var(--bg-color-primary);
+}
+
+.positionScale trough {
+    min-height: 5px;
+}
+
+dropdown popover {
+    border-radius: 10px;
+    background-color: transparent;
+}
+
+dropdown popover contents box scrolledwindow listview {
+    margin-right: 0px;
+    margin-left: 0px;
+    border-radius: 0px;
+    background-color: var(--bg-color-primary);
+}
+
+dropdown popover contents box scrolledwindow row {
+    margin: 0 0 0 1px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    background-color: var(--bg-color-primary);
+}
+
+.upperBox {
+    background-color: var(--bg-color-primary);
+}
+
+.lowerBox {
+    background-color: var(--bg-color-primary);
+}
+
+.trackWidget {
+    color: var(--text-color-primary);
+    background-color: var(--bg-trackwidget-color);
+}
+
+.trackWidget .trackLabel {
+    /* margin is playButton width + its start and end paddings, to keep label in
+    middle */
+    margin-left: 36px;
+    padding: 3px 0;
+}
+
+.trackWidget .playButton {
+    margin: 4px;
+}
+
+.trackWidget:hover {
+    color: var(--text-color-primary-hover);
+}
+
+.trackWidget-selected {
+    color: var(--text-color-primary-hover);
+}
+
+.boxSeparator {
+    min-height: 10px;
+    background: var(--bg-color-primary);
+    background: linear-gradient(0deg, rgba(24, 26, 31, 1) 0%, rgba(40, 42, 48, 1) 70%);
+}

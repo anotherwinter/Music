@@ -1,11 +1,25 @@
 #pragma once
-#include "enum_types.h"
 #include "track.h"
 #include <gtk/gtk.h>
 
 #define PLAYLIST_TYPE (playlist_get_type())
 G_DECLARE_FINAL_TYPE(Playlist, playlist, APP, PLAYLIST, GObject);
 typedef struct _Playlist Playlist;
+
+typedef enum
+{
+  PLAYBACK_NONE = 0,
+  PLAYBACK_LOOP = 1,
+  PLAYBACK_ONETRACK = 2,
+  PLAYBACK_SHUFFLE = 4
+} PlaybackOptions;
+
+typedef enum
+{
+  PLAYLIST_NONE = 0,
+  PLAYLIST_NEW = 1,
+  PLAYLIST_FOLDER = 2
+} PlaylistTypes;
 
 // Creates new playlist with optional path to playlists file. Type could be
 // PLAYLIST_NONE for ordinary playlists or PLAYLIST_FOLDER, PLAYLIST_NEW for

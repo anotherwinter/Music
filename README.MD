@@ -16,7 +16,7 @@
 
 -- Add other types of sorting
 
--- Multi-select tracks for removal
+-- ~~Multi-select tracks for removal~~
 
 -- Add support for themes
 

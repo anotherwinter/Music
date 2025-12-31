@@ -28,12 +28,16 @@ dialog_create_text_input_for_app(MusicApp* app,
   GtkWindow* dialog =
     GTK_WINDOW(gtk_builder_get_object(builder, "textInputDialog"));
   GtkWidget* entry = GTK_WIDGET(gtk_builder_get_object(builder, "dialogEntry"));
-  GtkWidget* ok_button =
-    GTK_WIDGET(gtk_builder_get_object(builder, "okButton"));
-  GtkWidget* cancel_button =
+  GtkWidget* okButton = GTK_WIDGET(gtk_builder_get_object(builder, "okButton"));
+  GtkWidget* cancelButton =
     GTK_WIDGET(gtk_builder_get_object(builder, "cancelButton"));
 
   g_object_unref(builder);
+
+  gtk_widget_add_css_class(GTK_WIDGET(dialog), "bg-primary");
+  gtk_widget_add_css_class(GTK_WIDGET(entry), "textField");
+  gtk_widget_add_css_class(GTK_WIDGET(okButton), "btn-primary");
+  gtk_widget_add_css_class(GTK_WIDGET(cancelButton), "btn-primary");
 
   gtk_window_set_modal(dialog, TRUE);
   gtk_window_set_transient_for(dialog, music_app_get_main_window(app));
@@ -53,8 +57,8 @@ dialog_create_text_input_for_app(MusicApp* app,
   }
 
   g_signal_connect(
-    ok_button, "clicked", G_CALLBACK(on_text_field_dialog_response), data);
-  g_signal_connect(cancel_button, "clicked", G_CALLBACK(dialog_close), dialog);
+    okButton, "clicked", G_CALLBACK(on_text_field_dialog_response), data);
+  g_signal_connect(cancelButton, "clicked", G_CALLBACK(dialog_close), dialog);
 
   return dialog;
 }

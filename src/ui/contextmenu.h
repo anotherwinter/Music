@@ -1,5 +1,5 @@
 #pragma once
-#include "musicapp.h"
+#include "../musicapp.h"
 
 typedef void (*ContextMenuCallback)(gpointer);
 typedef struct ContextMenu ContextMenu;
@@ -22,4 +22,5 @@ void
 context_menu_set_callback(ContextMenuCallback cb);
 void
 context_menu_trigger_callback(gpointer user_data);
-void context_menu_free();
+void
+context_menu_free();

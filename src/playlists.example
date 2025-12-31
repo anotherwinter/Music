@@ -1,9 +1,10 @@
-// Example playlists configuration file
+Example playlist. Lines not between playlist markers (lines that start and end with ':') are ignored.
+First line of a playlist contains its name. Last line contains description.
 :New Playlist1:
 /your/path/track1.mp3
 /your/path/track2.m4a
 /your/path/track3.wav
-:New Playlist1:
+:brand new playlist!:
 :New Playlist2:
 /your/path/track4.mp3
 /your/path/track5.mp3

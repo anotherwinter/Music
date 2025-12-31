@@ -1,14 +1,13 @@
 #include "playlist.h"
-#include "enum_types.h"
-#include "filelister.h"
+#include "../filelister.h"
 
 enum
 {
   INFO_CHANGED,
-  LAST_SIGNAL
+  COUNT
 };
 
-static guint playlist_signals[LAST_SIGNAL] = { 0 };
+static guint playlist_signals[COUNT] = { 0 };
 
 struct _Playlist
 {
@@ -20,7 +19,6 @@ struct _Playlist
   PlaylistTypes type;
   guint startLine;
   guint endLine;
-  bool wasEverSelected;
 };
 
 G_DEFINE_TYPE(Playlist, playlist, G_TYPE_OBJECT)
@@ -79,7 +77,6 @@ playlist_new(gchar* name, gchar* path, PlaylistTypes type)
   playlist->type = type;
   playlist->startLine = G_MAXUINT;
   playlist->endLine = G_MAXUINT;
-  playlist->wasEverSelected = false;
 
   return playlist;
 }
@@ -242,6 +239,7 @@ parse_playlists(GPtrArray* playlists, gchar* filename)
     while (endIndex < length) {
       switch (line[endIndex]) {
         case ':': {
+          // playlist name already parsed
           if (name) {
             // When reading first line of playlist (playlist name), like
             // ":MyPlaylist:", playlist instance is created
@@ -279,7 +277,6 @@ parse_playlists(GPtrArray* playlists, gchar* filename)
               break;
             }
           } else {
-
             // Parsing playlist name/note start here
             startIndex = endIndex;
             name = true;
@@ -294,25 +291,27 @@ parse_playlists(GPtrArray* playlists, gchar* filename)
           break;
         }
         default: {
-
           // Name could be FALSE only when reading start of playlist name/note
           // AND when reading ordinary lines (playlist null check was added for
           // avoiding parsing comment lines)
-          if (!name && playlist != NULL) {
-            if (file_exists(line)) {
-              Track* track = fetch_track(line);
-              if (tracks != NULL) {
-                g_ptr_array_add(tracks, track);
-                track->index = tracks->len - 1;
+          if (!name) {
+            // if playlist not null then parsing track for playlist
+            if (playlist != NULL) {
+              if (file_exists(line)) {
+                Track* track = fetch_track(line);
+                if (tracks != NULL) {
+                  g_ptr_array_add(tracks, track);
+                  track->index = tracks->len - 1;
+                }
+              } else {
+                g_printerr(
+                  "ERROR: parse_playlists(): No such file at line %d: %s\n",
+                  lineIndex + 1,
+                  line);
               }
-            } else {
-              g_printerr(
-                "ERROR: parse_playlists(): No such file at line %d: %s\n",
-                lineIndex + 1,
-                line);
             }
 
-            // Skip cycle if not reading playlist name or info
+            // Skip cycle if not parsing playlist name or its description
             endIndex = length;
           }
           break;

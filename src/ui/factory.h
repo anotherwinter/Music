@@ -1,5 +1,5 @@
 #pragma once
-#include "musicapp.h"
+#include "../musicapp.h"
 
 // Create and set factory for drawing selected widget in playlists dropdown
 GtkListItemFactory*

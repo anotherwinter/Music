@@ -1,7 +1,4 @@
 #include "track.h"
-#include "glib.h"
-#include <stdio.h>
-#include <taglib/tag_c.h>
 
 Track*
 fetch_track(gchar* path)

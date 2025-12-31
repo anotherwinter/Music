@@ -1,5 +1,5 @@
 #pragma once
-#include "musicapp.h"
+#include "../musicapp.h"
 
 typedef struct
 {

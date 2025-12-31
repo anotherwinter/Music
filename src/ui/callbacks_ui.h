@@ -1,6 +1,6 @@
 #pragma once
 #include "gtk/gtk.h"
-#include "playlist.h"
+#include "../playlist/playlist.h"
 
 void
 volumeScale_value_changed(GtkRange* self, gpointer user_data);

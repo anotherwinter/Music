@@ -3,6 +3,13 @@
 
 typedef struct AudioSystem AudioSystem;
 
+typedef enum AudioState
+{
+  AUDIO_STOPPED = 0,
+  AUDIO_PLAYING = 1,
+  AUDIO_PAUSED = 2
+} AudioState;
+
 int
 audio_system_init();
 void
